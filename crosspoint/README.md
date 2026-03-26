@@ -1,37 +1,43 @@
-# CrossPoint Firmware Navigation Mod
+# CrossPoint Firmware — Long-Press Chapter Navigation
 
-## Overview
+## What This Changes
 
-Firmware modifications for the CrossPoint e-ink reader to support XteSync's
-three-layer reading experience with long-press chapter navigation.
+**Only the side buttons.** Everything else stays stock.
 
-## Button Behavior
+| Button | Short Press | Long Press (hold 1s) |
+|--------|-------------|----------------------|
+| Side Down | Next page (unchanged) | Jump to next chapter start |
+| Side Up | Previous page (unchanged) | Jump to previous chapter start |
+| OK | Stock behavior | Stock behavior |
+| Back | Stock behavior | Stock behavior |
 
-### Modified Controls
+## Why
 
-| Button | Short Press (<1s) | Long Press (≥1s) |
-|--------|-------------------|-------------------|
-| Side Up | Previous page | Previous chapter (lands on summary) |
-| Side Down | Next page | Next chapter (lands on summary) |
-| OK | Reading menu | Toggle bookmark/star |
-| Back | Go to folder | Jump to cover page |
+XteSync briefing EPUBs use one spine item per category (Tech, Economics, Politics...).
+Each spine item starts with a summary page, followed by in-depth detail pages.
 
-### Key Principle
+Long-press lets you skip between categories without paging through the detail.
+Short-press is still normal page turn for reading within a category.
 
-Long-press always lands on a SUMMARY page (the first page of each chapter/spine item).
-This maps to the EPUB structure where each spine item = one category.
+## How It Works
+
+CrossPoint already tracks `currentSpineIndex` for EPUB navigation. The mod just
+adds a hold-duration check on the side buttons:
+
+- Hold ≥ 1 second → increment/decrement spine index, set page to 0, full refresh
+- Release before 1 second → normal page turn (unchanged)
+
+Full display refresh on chapter jump clears e-ink ghosting and gives tactile
+feedback that you've made a "big jump" vs a normal page turn.
 
 ## EPUB Spine Mapping
 
 ```
-spine item 0 → Cover page
-spine item 1 → Tech summary + Tech in-depth pages
-spine item 2 → Economics summary + Economics in-depth pages
-spine item 3 → Politics summary + Politics in-depth pages
+spine[0] → Cover page
+spine[1] → Tech (summary + detail pages)
+spine[2] → Economics (summary + detail pages)
+spine[3] → Politics (summary + detail pages)
 ...
 ```
 
-## Implementation Notes
-
-The chapter-jump leverages CrossPoint's existing EPUB spine navigation.
-See `EpubReaderActivity.cpp` for the reference implementation.
+The XteSync EPUB builder structures chapters this way automatically.
