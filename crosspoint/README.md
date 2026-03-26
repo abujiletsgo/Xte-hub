@@ -1,34 +1,26 @@
-# CrossPoint Firmware — Long-Press Chapter Navigation
+# CrossPoint Firmware — XteSync Navigation Mod
 
-## What This Changes
-
-**Only the side buttons.** Everything else stays stock.
+## Button Behavior
 
 | Button | Short Press | Long Press (hold 1s) |
 |--------|-------------|----------------------|
-| Side Down | Next page (unchanged) | Jump to next chapter start |
-| Side Up | Previous page (unchanged) | Jump to previous chapter start |
-| OK | Stock behavior | Stock behavior |
-| Back | Stock behavior | Stock behavior |
+| Side Down | Next page (stock) | Jump to next chapter start |
+| Side Up | Previous page (stock) | Jump to previous chapter start |
+| OK | Reading menu (stock) | Toggle bookmark |
+| Back | Go back (stock) | Jump to cover page |
 
-## Why
+Short-press on every button is unchanged from stock CrossPoint.
+
+## How It Works
 
 XteSync briefing EPUBs use one spine item per category (Tech, Economics, Politics...).
 Each spine item starts with a summary page, followed by in-depth detail pages.
 
-Long-press lets you skip between categories without paging through the detail.
-Short-press is still normal page turn for reading within a category.
-
-## How It Works
-
-CrossPoint already tracks `currentSpineIndex` for EPUB navigation. The mod just
-adds a hold-duration check on the side buttons:
-
-- Hold ≥ 1 second → increment/decrement spine index, set page to 0, full refresh
-- Release before 1 second → normal page turn (unchanged)
-
-Full display refresh on chapter jump clears e-ink ghosting and gives tactile
-feedback that you've made a "big jump" vs a normal page turn.
+- **Long-press side buttons** — increment/decrement spine index, set page to 0, full refresh. Lands on summary page every time.
+- **Long-press OK** — toggles bookmark on current page via existing `bookmarkManager`.
+- **Long-press Back** — jumps to spine[0] (cover page).
+- **Full refresh on chapter jump** — clears e-ink ghosting, gives clear feedback that you've jumped vs paged.
+- **Progress indicator** — shows "2 / 6" at bottom after a chapter jump so you know where you are.
 
 ## EPUB Spine Mapping
 
