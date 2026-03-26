@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+.env
+.venv/
+venv/
+data/xtesync.db
+data/content/
+*.epub
+.pytest_cache/
