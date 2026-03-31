@@ -18,8 +18,8 @@ src/xtesync/           Python package (FastAPI app)
   database.py          SQLite schema + async queries (items, clusters, sync_state, channels)
   models.py            Pydantic models, category icons/order
   routers/             API endpoints: items, briefings, channels, device
-  services/            Business logic: content extraction, synthesis, editorial,
-                       epub_builder, classifier, feed, news, sync
+  services/            Business logic: content.py, synthesis.py, editorial.py,
+                       epub_builder.py, classifier.py, feed.py, news.py, sync.py
   static/              Frontend HTML
 crosspoint/            Xteink firmware mod (C++ EpubReaderActivity)
 simulator/             Browser-based e-reader simulator
