@@ -1,5 +1,6 @@
 """API router for daily briefings - generate and retrieve briefings."""
 
+import logging
 import re
 from datetime import date, datetime
 from pathlib import Path
@@ -20,6 +21,8 @@ from xtesync.models import (
 )
 from xtesync.services import epub_builder, sync, synthesis
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/briefings", tags=["briefings"])
 
 
@@ -35,8 +38,16 @@ async def generate_briefing(body: GenerateRequest | None = None):
         if not items:
             raise HTTPException(status_code=404, detail="No items available for briefing")
 
-        # Step 2: Cluster related stories
-        cluster_groups = await synthesis.cluster_stories(items)
+        # Step 2: Cluster related stories (AI best-effort, fallback: 1 item = 1 cluster)
+        try:
+            cluster_groups = await synthesis.cluster_stories(items)
+        except Exception as e:
+            logger.warning("AI clustering failed, using per-item fallback: %s", e)
+            cluster_groups = [{
+                "headline": item.get("title", "Untitled"),
+                "category": item.get("category") or item.get("auto_category") or "general",
+                "item_ids": [item["id"]],
+            } for item in items]
 
         # Step 3: Create clusters in DB and synthesize
         items_by_id = {item["id"]: item for item in items}
@@ -50,8 +61,16 @@ async def generate_briefing(body: GenerateRequest | None = None):
             # Generate slug
             slug = _slugify(cg["headline"]) + f"-{briefing_date}"
 
-            # Synthesize multi-source or single-source
-            synth = await synthesis.synthesize_cluster(cluster_items)
+            # Synthesize multi-source or single-source (best-effort)
+            try:
+                synth = await synthesis.synthesize_cluster(cluster_items)
+            except Exception as e:
+                logger.warning("Synthesis failed for '%s': %s", cg["headline"], e)
+                from xtesync.models import SynthesisResult
+                synth = SynthesisResult(
+                    brief=cluster_items[0].get("summary", ""),
+                    full_text=cluster_items[0].get("detail", cluster_items[0].get("content_text", "")),
+                )
 
             # Create cluster in DB
             cluster_id = await db.create_cluster(
@@ -120,6 +139,7 @@ async def generate_briefing(body: GenerateRequest | None = None):
                 id=c["id"],
                 headline=c["headline"],
                 synthesis=c["synthesis_brief"],
+                detail=c.get("synthesis_full", ""),
                 key_facts=c.get("key_facts"),
                 source_agreement=c.get("source_agreement"),
                 item_count=c["item_count"],
@@ -242,10 +262,17 @@ async def _build_briefing_response(conn, briefing: dict) -> BriefingResponse:
                 )
                 for i in c.get("items", [])
             ]
+            # Get detail text from linked items if not on cluster
+            detail_text = ""
+            for i in c.get("items", []):
+                if i.get("detail"):
+                    detail_text = i["detail"]
+                    break
             cluster_summaries.append(ClusterSummary(
                 id=c["id"],
                 headline=c["headline"],
                 synthesis=c.get("synthesis"),
+                detail=detail_text,
                 key_facts=c.get("key_facts"),
                 source_agreement=c.get("source_agreement"),
                 item_count=c.get("item_count", 0),

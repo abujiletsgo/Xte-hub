@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrossPoint Simulator — Xteink X4</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --eink-white:232;--eink-lgray:176;--eink-dgray:100;--eink-black:28;
+  --bg:#0c0c10;--card:#14141c;--border:#22222e;--text:#bbb8b0;
+  --accent:#c49a5c;
+}
+body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center}
+
+/* ── HEADER ── */
+header{text-align:center;padding:20px 16px 8px}
+header h1{font-size:17px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#e8e3da}
+header .specs{font-size:11px;color:#555;margin-top:3px;letter-spacing:1px}
+
+/* ── LAYOUT ── */
+main{display:flex;gap:28px;padding:10px 20px 32px;max-width:1200px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+
+/* ── DEVICE ── */
+.device-wrap{flex-shrink:0;position:relative}
+.device-scale-wrap{
+  transform:scale(var(--device-scale,1));
+  transform-origin:top center;
+  transition:transform .15s ease;
+}
+.device{
+  position:relative;
+  background:#2a2a2c;
+  border-radius:14px;
+  padding:16px 14px 34px 14px;
+  box-shadow:0 2px 6px rgba(0,0,0,.6),0 12px 36px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);
+  border:1px solid #3a3a3e;
+  overflow:visible;
+}
+.usb-port{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:22px;height:5px;background:#181818;border-radius:0 0 3px 3px;border:1px solid #333;border-top:none}
+.sd-slot{position:absolute;left:-2px;top:35%;width:4px;height:14px;background:#1a1a1a;border-radius:2px 0 0 2px;border:1px solid #333;border-right:none}
+
+/* ── SCREEN BEZEL ── */
+.screen-bezel{background:#111;border-radius:3px;padding:2px;box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
+
+/* ── CANVAS DISPLAY ── */
+#einkCanvas{
+  display:block;
+  width:480px;height:800px;
+  border-radius:1px;
+  image-rendering:pixelated;
+  image-rendering:-moz-crisp-edges;
+  image-rendering:crisp-edges;
+}
+
+/* ── TOAST (matches CrossPoint Lyra drawPopup) ── */
+/* y=132 from top, rounded corners r=8, inverted colors, 2px outline */
+.toast-wrap{position:absolute;top:132px;left:50%;transform:translateX(-50%);z-index:20;pointer-events:none}
+.toast{
+  background:#000;color:#fff;
+  padding:12px 16px;
+  font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:bold;
+  border:2px solid #fff;border-radius:8px;
+  outline:2px solid #000;
+  opacity:0;transition:opacity .15s;white-space:nowrap;
+}
+.toast.visible{opacity:1}
+
+/* (progress bar + bookmark ribbon are now rendered on canvas via CrossPoint chrome) */
+
+/* ── MENU OVERLAY (matches CrossPoint EpubReaderMenuActivity) ── */
+.menu-overlay{
+  position:absolute;inset:0;background:#fff;color:#000;
+  z-index:15;display:none;flex-direction:column;
+  font-family:Helvetica,Arial,sans-serif;
+}
+.menu-overlay.open{display:flex}
+.menu-title{
+  text-align:center;font-size:14px;font-weight:bold;
+  padding:15px 20px 0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.menu-progress{
+  text-align:center;font-size:11px;color:#444;
+  padding:6px 20px 12px;
+}
+.menu-items{padding:0}
+.menu-item{
+  padding:6px 20px;font-size:13px;height:30px;
+  display:flex;align-items:center;
+  cursor:default;
+}
+.menu-item.selected{
+  background:#000;color:#fff;
+}
+.menu-item:not(.selected){
+  background:#fff;color:#000;
+}
+
+/* ── BUTTONS ── */
+.side-btns{position:absolute;right:-22px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:30}
+.bot-btns{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);display:flex;gap:28px;z-index:30}
+.hw{
+  position:relative;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  user-select:none;-webkit-user-select:none;transition:all .1s;overflow:hidden;
+  font-family:-apple-system,sans-serif;
+}
+.side-btns .hw{
+  width:22px;height:36px;
+  background:linear-gradient(90deg,#3a3a3e,#2e2e32);
+  border-radius:0 5px 5px 0;color:#888;font-size:10px;
+  box-shadow:2px 2px 4px rgba(0,0,0,.5),inset -1px 0 0 rgba(255,255,255,.06);
+}
+.side-btns .hw.pwr{height:22px;margin-bottom:6px}
+.bot-btns .hw{
+  width:48px;height:20px;
+  background:linear-gradient(180deg,#3a3a3e,#2e2e32);
+  border-radius:0 0 5px 5px;color:#888;font-size:9px;font-weight:600;letter-spacing:.5px;
+  box-shadow:0 3px 4px rgba(0,0,0,.5),inset 0 -1px 0 rgba(255,255,255,.06);
+}
+.hw:active,.hw.pressed{transform:scale(.94);box-shadow:0 1px 2px rgba(0,0,0,.5)}
+.hw.long-pressed{background:#555!important;color:#fff}
+.hw.triggered{animation:pop .2s ease-out}
+@keyframes pop{0%{transform:scale(.94)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+.hfill{position:absolute;bottom:0;left:0;height:100%;width:0;background:rgba(255,255,255,.12);pointer-events:none;border-radius:inherit}
+
+/* ── INFO PANEL ── */
+.info{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px}
+.card h3{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#555;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* State grid */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.si{text-align:center}
+.si .lb{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px}
+.si .vl{font-size:20px;font-weight:700;color:#e8e3da;font-variant-numeric:tabular-nums}
+.si .su{font-size:10px;color:#444}
+
+/* Config */
+.cfg-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a24;font-size:12px}
+.cfg-row:last-child{border:none}
+.cfg-row label{color:#888;flex-shrink:0;width:95px}
+.cfg-row select,.cfg-row input{
+  background:#1a1a24;border:1px solid #2a2a36;color:#ccc;padding:3px 6px;
+  border-radius:4px;font-size:11px;flex:1;min-width:0;
+}
+.cfg-row input[type=range]{padding:0;accent-color:var(--accent)}
+.cfg-note{font-size:10px;color:#444;margin-top:6px;font-style:italic}
+
+/* Legend table */
+.lt{width:100%;font-size:11px;border-collapse:collapse}
+.lt td{padding:4px 3px;border-bottom:1px solid #1a1a24;vertical-align:top}
+.lt td:first-child{font-weight:600;color:#999;width:65px;white-space:nowrap}
+.as{color:#777}.al{color:var(--accent)}
+
+/* Shortcuts */
+.sr{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;border-bottom:1px solid #1a1a24}
+.sr:last-child{border:none}
+.sk{background:#1e1e28;border:1px solid #2e2e3a;border-radius:3px;padding:1px 6px;font-size:10px;font-family:monospace;color:#bbb}
+.sd{color:#666}
+
+/* Bookmarks & Specs */
+.bml{font-size:11px;color:#666}
+.bml .bi{padding:2px 0;border-bottom:1px solid #1a1a24}
+.bml .empty{font-style:italic;color:#444}
+.spg{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px}
+.spg .sl{color:#555}.spg .sv{color:#888;text-align:right}
+
+/* Rendering mode badge */
+.render-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:400}
+.render-badge.canvas{background:#1a3a1a;color:#5a5;border:1px solid #2a4a2a}
+.render-badge.css{background:#3a2a1a;color:#a85;border:1px solid #4a3a2a}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CrossPoint Simulator <span class="render-badge" id="renderBadge">init</span></h1>
+  <div class="specs">Xteink X4 &middot; 480&times;800 portrait &middot; 4.3" E-Ink &middot; 220 PPI &middot; 4 grayscale</div>
+</header>
+
+<main>
+  <!-- ═══ DEVICE ═══ -->
+  <div class="device-wrap">
+    <!-- Scale calibration -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:#666;justify-content:center">
+      <span>Scale</span>
+      <input type="range" id="scaleSlider" min="0.3" max="2" step="0.02" value="1" style="width:140px;accent-color:#c49a5c">
+      <span id="scaleLabel" style="width:50px;color:#aaa">1.00x</span>
+      <span style="color:#444;font-size:10px">(scale down to match real device)</span>
+    </div>
+    <div class="device-scale-wrap" id="deviceScaleWrap">
+    <div class="device">
+      <div class="sd-slot"></div>
+      <div class="usb-port"></div>
+      <div class="screen-bezel" style="position:relative">
+        <canvas id="einkCanvas" width="480" height="800"></canvas>
+        <!-- HTML overlays on top of canvas -->
+        <div class="toast-wrap"><div class="toast" id="toast"></div></div>
+        <div class="menu-overlay" id="menuOv">
+          <div class="menu-title" id="menuTitle"></div>
+          <div class="menu-progress" id="menuProg"></div>
+          <div class="menu-items" id="menuItems"></div>
+        </div>
+      </div>
+      <!-- Right-side buttons -->
+      <div class="side-btns">
+        <button class="hw pwr" id="btnPwr" title="Power">&#9211;</button>
+        <button class="hw" id="btnPrev" title="Side Up">&#9650;<div class="hfill"></div></button>
+        <button class="hw" id="btnNext" title="Side Down">&#9660;<div class="hfill"></div></button>
+      </div>
+      <!-- Bottom buttons -->
+      <div class="bot-btns">
+        <button class="hw" id="btnBack" title="Back">&#9664;<div class="hfill"></div></button>
+        <button class="hw" id="btnOk" title="OK">OK<div class="hfill"></div></button>
+      </div>
+    </div>
+    </div><!-- /device-scale-wrap -->
+  </div>
+
+  <!-- ═══ INFO PANEL ═══ -->
+  <div class="info">
+    <!-- State -->
+    <div class="card">
+      <h3>Device State</h3>
+      <div class="sg">
+        <div class="si"><div class="lb">Chapter</div><div class="vl" id="stSpine">0</div><div class="su" id="stSpineLbl">Cover</div></div>
+        <div class="si"><div class="lb">Page</div><div class="vl" id="stPage">1</div><div class="su" id="stPageLbl">of 1</div></div>
+        <div class="si"><div class="lb">Total Ch.</div><div class="vl" id="stTotal">5</div><div class="su">spine items</div></div>
+        <div class="si"><div class="lb">Bookmarks</div><div class="vl" id="stBm">0</div><div class="su">saved</div></div>
+      </div>
+    </div>
+
+    <!-- CrossPoint Config -->
+    <div class="card">
+      <h3>CrossPoint Config</h3>
+      <div class="cfg-row">
+        <label>Long press</label>
+        <input type="range" id="cfgLp" min="400" max="2000" step="100" value="1000">
+        <span id="cfgLpVal" style="width:40px;text-align:right;font-size:11px;color:#aaa">1.0s</span>
+      </div>
+      <div class="cfg-row"><label>&#9660; short</label><select id="cfgNextS"><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="nextCh">Next chapter</option><option value="prevCh">Prev chapter</option><option value="bookmark">Bookmark</option><option value="menu">Menu</option><option value="cover">Cover</option><option value="back">Back</option></select></div>
+      <div class="cfg-row"><label>&#9660; long</label><select id="cfgNextL"><option value="nextCh">Next chapter</option><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="prevCh">Prev chapter</option><option value="bookmark">Bookmark</option><option value="menu">Menu</option><option value="cover">Cover</option><option value="back">Back</option></select></div>
+      <div class="cfg-row"><label>&#9650; short</label><select id="cfgPrevS"><option value="prevPage">Prev page</option><option value="nextPage">Next page</option><option value="nextCh">Next chapter</option><option value="prevCh">Prev chapter</option><option value="bookmark">Bookmark</option><option value="menu">Menu</option><option value="cover">Cover</option><option value="back">Back</option></select></div>
+      <div class="cfg-row"><label>&#9650; long</label><select id="cfgPrevL"><option value="prevCh">Prev chapter</option><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="nextCh">Next chapter</option><option value="bookmark">Bookmark</option><option value="menu">Menu</option><option value="cover">Cover</option><option value="back">Back</option></select></div>
+      <div class="cfg-row"><label>OK short</label><select id="cfgOkS"><option value="menu">Menu</option><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="nextCh">Next chapter</option><option value="prevCh">Prev chapter</option><option value="bookmark">Bookmark</option><option value="cover">Cover</option><option value="back">Back</option></select></div>
+      <div class="cfg-row"><label>OK long</label><select id="cfgOkL"><option value="bookmark">Bookmark</option><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="nextCh">Next chapter</option><option value="prevCh">Prev chapter</option><option value="menu">Menu</option><option value="cover">Cover</option><option value="back">Back</option></select></div>
+      <div class="cfg-row"><label>&#9664; short</label><select id="cfgBkS"><option value="back">Back</option><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="nextCh">Next chapter</option><option value="prevCh">Prev chapter</option><option value="bookmark">Bookmark</option><option value="menu">Menu</option><option value="cover">Cover</option></select></div>
+      <div class="cfg-row"><label>&#9664; long</label><select id="cfgBkL"><option value="cover">Cover</option><option value="nextPage">Next page</option><option value="prevPage">Prev page</option><option value="nextCh">Next chapter</option><option value="prevCh">Prev chapter</option><option value="bookmark">Bookmark</option><option value="menu">Menu</option><option value="back">Back</option></select></div>
+      <div class="cfg-note">Changes apply instantly. Matches CrossPoint firmware behavior.</div>
+    </div>
+
+    <!-- Shortcuts -->
+    <div class="card">
+      <h3>Keyboard</h3>
+      <div class="sr"><span class="sk">&darr;</span><span class="sd">Next page</span></div>
+      <div class="sr"><span class="sk">&uarr;</span><span class="sd">Prev page</span></div>
+      <div class="sr"><span class="sk">Shift+&darr;</span><span class="sd">Next chapter</span></div>
+      <div class="sr"><span class="sk">Shift+&uarr;</span><span class="sd">Prev chapter</span></div>
+      <div class="sr"><span class="sk">Enter</span><span class="sd">Menu</span></div>
+      <div class="sr"><span class="sk">Shift+Enter</span><span class="sd">Bookmark</span></div>
+      <div class="sr"><span class="sk">Backspace</span><span class="sd">Back</span></div>
+      <div class="sr"><span class="sk">Shift+Bksp</span><span class="sd">Cover</span></div>
+      <div class="sr"><span class="sk">P</span><span class="sd">Power</span></div>
+    </div>
+
+    <!-- Bookmarks -->
+    <div class="card">
+      <h3>Bookmarks</h3>
+      <div class="bml" id="bmList"><div class="empty">No bookmarks yet</div></div>
+    </div>
+
+    <!-- Specs -->
+    <div class="card">
+      <h3>Display</h3>
+      <div class="spg">
+        <span class="sl">Resolution</span><span class="sv">480 &times; 800</span>
+        <span class="sl">Orientation</span><span class="sv">Portrait</span>
+        <span class="sl">Size</span><span class="sv">4.3" diagonal</span>
+        <span class="sl">PPI</span><span class="sv">~220</span>
+        <span class="sl">Grayscale</span><span class="sv">4 levels</span>
+        <span class="sl">Full refresh</span><span class="sv">~2.5s</span>
+        <span class="sl">Partial refresh</span><span class="sv">~0.4s</span>
+        <span class="sl">Panel</span><span class="sv">GDEQ0426T82</span>
+        <span class="sl">Rendering</span><span class="sv" id="renderMode">detecting...</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CROSSPOINT SIMULATOR — CANVAS-BASED E-INK EMULATION
+   Xteink X4 · 480×800 portrait · 4-level grayscale
+   ═══════════════════════════════════════════════════════════════ */
+
+const W = 480, H = 800;
+const LEVELS = [28, 100, 176, 232]; // exact 4 e-ink grayscale values
+const BG = 232, FG = 28;
+
+// ─── CSS for foreignObject rendering ─────────────────────────
+// Pixel-accurate CrossPoint Lyra theme reading view
+// Source: crosspoint-reader/src/components/themes/lyra/LyraTheme.h
+//
+// Viewable margins: top=9 right=3 bottom=3 left=3
+// Screen margin (default): 5px
+// Oriented: top=14 left=8 right=8 bottom=max(5, statusBarH)
+// Status bar: 19px text + 5px progress bar = 24px
+// Content bottom: 800 - 14 - 24 = ~762 → bottom offset ~38px
+const FCSS = `
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* ── Screen root ── */
+.cp{
+  width:${W}px;height:${H}px;
+  background:#fff;color:#000;
+  position:relative;overflow:hidden;
+  font-family:Georgia,'Times New Roman',serif;
+  -webkit-font-smoothing:none;
+}
+
+/* ── Reading content area ── */
+.ct{
+  position:absolute;
+  top:20px;left:24px;right:24px;bottom:40px;
+  font-size:17px;line-height:1.6;
+  text-align:left;
+  overflow:hidden;
+  hyphens:none;-webkit-hyphens:none;
+  word-break:normal;overflow-wrap:break-word;
+}
+
+/* ── Status bar ── */
+.sb{
+  position:absolute;
+  bottom:10px;left:24px;right:24px;
+  height:16px;
+  font-family:Helvetica,Arial,sans-serif;
+  font-size:11px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  color:#000;
+}
+.sb .bat{font-size:12px;letter-spacing:-1px}
+.sb .ch{font-size:10px;position:absolute;left:50%;transform:translateX(-50%)}
+.sb .pg{font-size:11px}
+
+/* ── Progress bar ── */
+.pb{
+  position:absolute;
+  bottom:3px;left:24px;right:24px;
+  height:4px;
+  border:1px solid #000;
+  background:#fff;
+}
+.pf{height:100%;background:#000}
+
+/* ── Bookmark ribbon ── */
+.bkr{
+  position:absolute;
+  top:20px;right:30px;
+  width:16px;height:28px;
+  background:#000;
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 72%,0 100%);
+}
+
+/* ── Cover page ── */
+.cover{text-align:center;padding-top:80px}
+.cover h1{font-size:26px;margin-bottom:8px;font-weight:bold}
+.cover .date{font-size:18px;margin-bottom:16px;color:#444}
+.cover .stats{font-size:15px;color:#444;margin-bottom:6px}
+.cover .catlist{font-size:16px;margin-top:10px;line-height:1.8}
+.cover .nav{font-size:14px;color:#555;border-top:1px solid #000;padding-top:16px;margin-top:36px;text-align:left;max-width:360px;margin-left:auto;margin-right:auto;line-height:2.0}
+.cover .nav strong{color:#000;font-size:15px}
+
+/* ── Summary page ── */
+.sp h1{font-size:21px;margin-bottom:16px;border-bottom:2px solid #000;padding-bottom:8px;font-weight:bold}
+.ss{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #ccc}
+.ss:last-of-type{border-bottom:none;margin-bottom:8px}
+.ss h3{font-size:15px;font-weight:bold;margin-bottom:5px;line-height:1.3}
+.ss .brief{font-size:13px;line-height:1.45;margin-bottom:6px;color:#222}
+ul.facts{list-style:none;margin:4px 0 4px 0;padding:0}
+ul.facts li{font-size:12px;color:#333;padding:1px 0 1px 16px;position:relative}
+ul.facts li::before{content:'';position:absolute;left:3px;top:6px;width:5px;height:5px;background:#000;border-radius:50%}
+ul.facts li.warn::before{background:none;border:1px solid #000;border-radius:0;width:5px;height:5px;transform:rotate(45deg);top:5px}
+.src{font-size:11px;color:#777;font-style:italic;margin-top:5px}
+.nh{font-size:13px;text-align:center;color:#888;margin-top:16px;font-style:italic}
+
+/* ── Detail page ── */
+.ds h2{font-size:19px;margin-bottom:14px;line-height:1.35;font-weight:bold}
+.ds h3{font-size:16px;font-weight:bold;margin:14px 0 8px}
+.ds p{font-size:15px;line-height:1.65;margin-bottom:12px;text-align:left}
+.ds blockquote{font-size:15px;line-height:1.55;margin:10px 0;padding:8px 0 8px 16px;border-left:3px solid #000;font-style:italic;color:#222}
+.ds ul{list-style:none;margin:8px 0;padding:0}
+.ds ul li{font-size:14px;line-height:1.5;padding:3px 0 3px 18px;position:relative}
+.ds ul li::before{content:'';position:absolute;left:4px;top:10px;width:5px;height:5px;background:#000;border-radius:50%}
+.ds .sa{font-size:12px;color:#555;font-style:italic;border-top:1px solid #000;padding-top:8px;margin-top:16px}
+.ds .kf{margin:10px 0;padding:8px 0 8px 14px;border-left:3px solid #555}
+.ds .kf p{font-size:13px;line-height:1.4;margin-bottom:4px}
+`;
+
+// ─── CONTENT ─────────────────────────────────────────────────
+const spine = [
+  // [0] Cover
+  { title:'Cover', pages:[`
+    <div class="cover">
+      <h1>Your Daily Briefing</h1>
+      <p class="date">March 27, 2026</p>
+      <p class="stats">12 stories across 4 categories</p>
+      <p class="catlist">
+        &#9889; Tech &#183; &#128202; Economics<br/>&#127963; Politics &#183; &#8383; Crypto
+      </p>
+      <div class="nav">
+        <p><strong>CrossPoint Navigation</strong></p>
+        <p>&#9660; Short = next page</p>
+        <p>&#9660; Hold = next category</p>
+        <p>&#9650; Short = prev page</p>
+        <p>&#9650; Hold = prev category</p>
+        <p>OK hold = bookmark</p>
+        <p>&#9664; Hold = cover</p>
+      </div>
+    </div>`]
+  },
+  // [1] Tech
+  { title:'&#9889; TECH', pages:[
+    `<div class="sp"><h1>&#9889; TECH</h1>
+      <div class="ss">
+        <h3>Apple M5 Ultra Chip Unveiled</h3>
+        <p class="brief">Apple unveiled the M5 Ultra, claiming 2x M4 Ultra performance with 40% lower power. Mac Studio and Mac Pro ship April 15.</p>
+        <ul class="facts">
+          <li>TSMC 2nm process</li>
+          <li>80-core GPU, 32-core CPU</li>
+        </ul>
+        <p class="src">TechCrunch, The Verge, Ars Technica</p>
+      </div>
+      <div class="ss">
+        <h3>DeepMind Hits AGI Benchmark</h3>
+        <p class="brief">Gemini Ultra 2 scored 94th percentile on ARC-AGI-2, above human median in every category.</p>
+        <ul class="facts">
+          <li>Abstract reasoning: 97th pctl</li>
+          <li class="warn">Methodology questioned</li>
+        </ul>
+        <p class="src">Reuters, MIT Tech Review</p>
+      </div>
+      <div class="ss">
+        <h3>EU AI Liability Framework</h3>
+        <p class="brief">Parliament voted 412-189 for strict liability rules. Deployers responsible for harms.</p>
+        <ul class="facts">
+          <li>Applies to all AI in EU market</li>
+        </ul>
+        <p class="src">Financial Times, Politico EU</p>
+      </div>
+      <p class="nh">short-press for details &#8594;</p></div>`,
+
+    `<div class="ds">
+      <h2>Apple M5 Ultra Chip</h2>
+      <p>Apple revealed the M5 Ultra at its spring event. Built on TSMC's 2nm process, it integrates 80 GPU cores and 32 CPU cores.</p>
+      <p>The chip supports 128GB unified memory at 800GB/s, enabling 100B+ parameter LLMs to run entirely on-device.</p>
+      <blockquote>"This changes what's possible on a desktop." &#8212; Apple VP</blockquote>
+      <h3>Key Specs</h3>
+      <ul>
+        <li>2x multi-threaded performance vs M4 Ultra</li>
+        <li>40% lower power consumption</li>
+        <li>28,400 Geekbench multi-core score</li>
+      </ul>
+      <p>Mac Studio ($1,999) and Mac Pro ($3,499) ship April 15 with Thunderbolt 5.</p>
+      <div class="sa">Sources: TechCrunch, The Verge, Ars Technica</div></div>`,
+
+    `<div class="ds">
+      <h2>DeepMind Gemini Ultra 2 Hits AGI Benchmark</h2>
+      <p>Google DeepMind reported Gemini Ultra 2 scored at the 94th percentile on ARC-AGI-2, above human median in every category.</p>
+      <h3>Benchmark Results</h3>
+      <ul>
+        <li>Abstract reasoning: 97th percentile</li>
+        <li>Novel problem solving: 93rd</li>
+        <li>Cross-domain transfer: 91st</li>
+      </ul>
+      <p>A major jump from Ultra 1's 71st percentile eight months ago.</p>
+      <blockquote>"Passing benchmarks is not general intelligence." &#8212; Dr. Emily Zhang, Stanford</blockquote>
+      <p>DeepMind says 40% of test problems were novel, generated after the model's training cutoff.</p>
+      <div class="sa">Sources: Reuters, MIT Technology Review</div></div>`,
+
+    `<div class="ds">
+      <h2>EU Passes AI Liability Framework</h2>
+      <p>The European Parliament voted 412-189 to adopt the AI Liability Directive.</p>
+      <h3>What It Covers</h3>
+      <ul>
+        <li>Healthcare diagnostics</li>
+        <li>Hiring and credit scoring</li>
+        <li>Law enforcement</li>
+        <li>Critical infrastructure</li>
+      </ul>
+      <h3>How It Works</h3>
+      <p>High-risk AI: strict liability. General-purpose: fault-based with reversed burden of proof. Mandatory insurance required.</p>
+      <p>Takes effect in 18 months. US companies already adapting, suggesting GDPR-like global ripple effects.</p>
+      <div class="sa">Sources: FT, Politico EU, Bloomberg Law</div></div>`,
+  ]},
+  // [2] Economics
+  { title:'&#128202; ECONOMICS', pages:[
+    `<div class="sp"><h1>&#128202; ECONOMICS</h1>
+      <div class="ss">
+        <h3>Fed Signals Two Rate Cuts</h3>
+        <p class="brief">Chair Powell: Fed prepared to cut rates twice more in 2026. Core PCE at 2.3%, unemployment at 4.1%.</p>
+        <ul class="facts">
+          <li>92% June cut probability priced in</li>
+          <li>10Y yield dropped 8bps to 3.85%</li>
+        </ul>
+        <p class="src">WSJ, Bloomberg, CNBC</p>
+      </div>
+      <div class="ss">
+        <h3>Nikkei Hits Record on Weak Yen</h3>
+        <p class="brief">Nikkei 225 surged past 45,000 as yen hit 162/dollar, a 34-year low. BoJ intervention expected.</p>
+        <ul class="facts">
+          <li>Auto sector up 4.2%</li>
+          <li>Toyota, Sony led rally</li>
+        </ul>
+        <p class="src">Nikkei, Financial Times</p>
+      </div>
+      <p class="nh">short-press for details &#8594;</p></div>`,
+
+    `<div class="ds">
+      <h2>Fed Signals Two Rate Cuts</h2>
+      <blockquote>"The data increasingly supports gradual normalization." &#8212; Jerome Powell</blockquote>
+      <h3>The Numbers</h3>
+      <ul>
+        <li>Core PCE: 2.3% (down from 2.8%)</li>
+        <li>Unemployment: 4.1%</li>
+        <li>June cut: 92% probability</li>
+        <li>10Y yield: dropped 8bps to 3.85%</li>
+      </ul>
+      <p>Mortgage rates expected below 6% by Q4. Some Fed governors note services inflation remains sticky at 3.1%.</p>
+      <div class="sa">Sources: WSJ, Bloomberg, CNBC</div></div>`,
+
+    `<div class="ds">
+      <h2>Nikkei Hits Record on Weak Yen</h2>
+      <p>Japan's Nikkei 225 surged past 45,000 as yen hit 162/dollar, weakest since 1990.</p>
+      <h3>Market Impact</h3>
+      <ul>
+        <li>Toyota, Sony led the rally</li>
+        <li>Auto sector up 4.2%</li>
+        <li>$3.2B foreign inflows this week</li>
+      </ul>
+      <h3>Policy Dilemma</h3>
+      <p>Weak yen helps exporters but drives import costs. Household spending declined three consecutive months. BoJ expected to intervene around 165.</p>
+      <div class="sa">Sources: Nikkei Asia, FT, Reuters</div></div>`,
+  ]},
+  // [3] Politics
+  { title:'&#127963; POLITICS', pages:[
+    `<div class="sp"><h1>&#127963; POLITICS</h1>
+      <div class="ss">
+        <h3>$280B Infrastructure Bill Clears Senate</h3>
+        <p class="brief">Bipartisan package (72-28) for broadband, grid, and water systems. No new taxes.</p>
+        <ul class="facts">
+          <li>$65B rural broadband</li>
+          <li>$90B grid resilience</li>
+        </ul>
+        <p class="src">AP, Politico, The Hill</p>
+      </div>
+      <div class="ss">
+        <h3>UK Calls Snap Election for May 22</h3>
+        <p class="brief">PM seeks fresh mandate. Governing party leads +6 in polls after economic reforms.</p>
+        <ul class="facts"><li>Campaign starts April 15</li></ul>
+        <p class="src">BBC, The Guardian</p>
+      </div>
+      <div class="ss">
+        <h3>G7 Signs AI Governance Accord</h3>
+        <p class="brief">Osaka Accord: binding AI safety testing and cross-border enforcement. Penalties up to 4% revenue.</p>
+        <ul class="facts"><li>Mandatory frontier model testing</li></ul>
+        <p class="src">Reuters, NYT, Nikkei</p>
+      </div>
+      <p class="nh">short-press for details &#8594;</p></div>`,
+
+    `<div class="ds">
+      <h2>$280B Infrastructure Bill</h2>
+      <h3>Where the Money Goes</h3>
+      <ul>
+        <li>$65B &#8212; rural broadband (15M households)</li>
+        <li>$90B &#8212; grid resilience</li>
+        <li>$48B &#8212; water systems (lead pipes)</li>
+        <li>Remaining &#8212; bridges, ports, EV charging</li>
+      </ul>
+      <h3>Funding</h3>
+      <p>Spectrum auctions + repurposed pandemic relief. No new taxes secured GOP support.</p>
+      <p>Estimated 1.2M jobs over five years. House vote expected within two weeks.</p>
+      <div class="sa">Sources: AP, Politico, The Hill</div></div>`,
+
+    `<div class="ds">
+      <h2>UK Snap Election for May 22</h2>
+      <p>PM seeks fresh mandate after February's economic reforms. Polls show governing party +6 points.</p>
+      <h3>Key Campaign Issues</h3>
+      <ul>
+        <li>Cost of living</li>
+        <li>NHS reform</li>
+        <li>Immigration policy</li>
+        <li>Post-Brexit trade</li>
+      </ul>
+      <p>Campaign begins April 15. Youth registration (18-24) up 23% &#8212; could be decisive.</p>
+      <div class="sa">Sources: BBC, Guardian, Sky News</div></div>`,
+
+    `<div class="ds">
+      <h2>G7 Osaka AI Governance Accord</h2>
+      <p>First binding international AI framework signed by all G7 leaders.</p>
+      <h3>Key Provisions</h3>
+      <ul>
+        <li>Mandatory safety testing for frontier models</li>
+        <li>Required AI disclosure in individual decisions</li>
+        <li>Cross-border enforcement</li>
+        <li>Penalties up to 4% global revenue</li>
+      </ul>
+      <p>China and India sent observers. Implementation Q1 2027, with 12-month grace period for companies under $100M.</p>
+      <div class="sa">Sources: Reuters, NYT, Nikkei Asia</div></div>`,
+  ]},
+  // [4] Crypto
+  { title:'&#8383; CRYPTO', pages:[
+    `<div class="sp"><h1>&#8383; CRYPTO</h1>
+      <div class="ss">
+        <h3>BTC ETFs: Record $2.1B Inflow</h3>
+        <p class="brief">Spot BTC ETFs hit record as BTC broke $95K. BlackRock IBIT led with $890M. ETF holdings: 1.2M BTC.</p>
+        <ul class="facts">
+          <li>Market cap surpassed $1.85T</li>
+          <li>Fed pivot + halving narrative</li>
+        </ul>
+        <p class="src">CoinDesk, Bloomberg</p>
+      </div>
+      <div class="ss">
+        <h3>Ethereum 3.0 Roadmap</h3>
+        <p class="brief">100K TPS target with sub-cent gas fees via new danksharding. Three phases through 2028.</p>
+        <ul class="facts">
+          <li>Phase 1: data availability Q4 2026</li>
+          <li class="warn">Timeline "ambitious" per analysts</li>
+        </ul>
+        <p class="src">The Block, Decrypt</p>
+      </div>
+      <p class="nh">short-press for details &#8594;</p></div>`,
+
+    `<div class="ds">
+      <h2>Bitcoin ETFs: Record $2.1B Inflow</h2>
+      <p>BTC surged past $95K for the first time.</p>
+      <h3>ETF Flows</h3>
+      <ul>
+        <li>BlackRock IBIT: $890M</li>
+        <li>Fidelity FBTC: $520M</li>
+        <li>Total holdings: 1.2M BTC (5.7% supply)</li>
+        <li>Market cap briefly topped $1.85T</li>
+      </ul>
+      <h3>Outlook</h3>
+      <p>Drivers: Fed's dovish pivot, institutional adoption, halving narrative. Options pricing 35% chance of $120K by year-end.</p>
+      <blockquote>"This pace is unsustainable and often precedes pullbacks."</blockquote>
+      <div class="sa">Sources: CoinDesk, Bloomberg, The Block</div></div>`,
+
+    `<div class="ds">
+      <h2>Ethereum 3.0 Roadmap</h2>
+      <p>Protocol overhaul targeting 100K TPS and sub-cent gas fees via danksharding.</p>
+      <h3>Three Phases</h3>
+      <ul>
+        <li>Q4 2026 &#8212; Data availability sampling</li>
+        <li>Mid 2027 &#8212; Full danksharding</li>
+        <li>2028 &#8212; State expiry</li>
+      </ul>
+      <blockquote>"Ethereum has a history of delays. Add 12-18 months to each target."</blockquote>
+      <p>L2 tokens (Optimism, Arbitrum) dipped 8-12% on the news. Foundation cites successful 10,000-node testnet.</p>
+      <div class="sa">Sources: The Block, Decrypt</div></div>`,
+  ]},
+];
+
+// ─── STATE ───────────────────────────────────────────────────
+const S = {
+  si: 0, pi: 0, // spine index, page index
+  bookmarks: new Set(),
+  ghostData: null, ghostIntensity: 0,
+  menuOpen: false, refreshing: false, power: true,
+  history: [],
+  canvasMode: false, // true = canvas posterize, false = CSS fallback
+};
+
+// ─── CONFIG (editable from panel) ────────────────────────────
+const cfg = {
+  longPressMs: 1000,
+  nextS: 'nextPage', nextL: 'nextCh',
+  prevS: 'prevPage', prevL: 'prevCh',
+  okS: 'menu',       okL: 'bookmark',
+  bkS: 'back',       bkL: 'cover',
+};
+
+// ─── DOM ─────────────────────────────────────────────────────
+const canvas = document.getElementById('einkCanvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const $ = id => document.getElementById(id);
+
+// ═══════════════════════════════════════════════════════════════
+// CANVAS E-INK RENDERER
+// ═══════════════════════════════════════════════════════════════
+
+function posterize(ctx) {
+  let imageData;
+  try { imageData = ctx.getImageData(0, 0, W, H); }
+  catch(e) { return false; } // tainted
+
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    // Subtle jitter for e-ink non-uniformity at level boundaries
+    const j = gray + (Math.random() - 0.5) * 6;
+    let best = LEVELS[0], dist = 999;
+    for (const lv of LEVELS) {
+      const dd = Math.abs(j - lv);
+      if (dd < dist) { dist = dd; best = lv; }
+    }
+    d[i] = d[i+1] = d[i+2] = best;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return true;
+}
+
+// Build CrossPoint UI chrome around page content
+function wrapWithChrome(contentHtml) {
+  // Calculate reading progress
+  const totalPages = spine.reduce((s, sp) => s + sp.pages.length, 0);
+  let curPage = 0;
+  for (let i = 0; i < S.si; i++) curPage += spine[i].pages.length;
+  curPage += S.pi + 1;
+  const progress = Math.round((curPage / totalPages) * 100);
+
+  const chapTitle = spine[S.si].title.replace(/&#\d+;/g, '').trim() || 'Cover';
+  const pageLabel = `${S.pi + 1}/${spine[S.si].pages.length}`;
+  const isBookmarked = S.bookmarks.has(`${S.si}:${S.pi}`);
+
+  // Battery icon: simple rectangle with nub
+  const bat = `<span class="bat">&#9646;&#9646;</span>`;
+
+  return `<div class="cp">
+  <div class="ct">${contentHtml}</div>
+  <div class="sb">
+    ${bat}
+    <span class="ch">${chapTitle}</span>
+    <span class="pg">${pageLabel}</span>
+  </div>
+  <div class="pb"><div class="pf" style="width:${progress}%"></div></div>
+  ${isBookmarked ? '<div class="bkr"></div>' : ''}
+</div>`;
+}
+
+function buildSvg(html) {
+  const css = FCSS.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+<foreignObject width="100%" height="100%">
+<div xmlns="http://www.w3.org/1999/xhtml">
+<style>${css}</style>
+${html}
+</div>
+</foreignObject>
+</svg>`;
+}
+
+function loadImg(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+
+async function renderToCanvas(html) {
+  const svg = buildSvg(html);
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await loadImg(url);
+    ctx.drawImage(img, 0, 0, W, H);
+    const ok = posterize(ctx);
+    if (!ok) throw new Error('tainted');
+    S.canvasMode = true;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// CSS fallback: draw with fillText (basic)
+function renderFallbackText(html) {
+  ctx.fillStyle = `rgb(${BG},${BG},${BG})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = `rgb(${FG},${FG},${FG})`;
+  ctx.font = '15px Georgia, serif';
+
+  // Strip HTML tags for simple text rendering
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = text.split(' ');
+  let x = 24, y = 40, maxW = W - 48;
+
+  for (const word of words) {
+    const m = ctx.measureText(word + ' ');
+    if (x + m.width > maxW + 24) { x = 24; y += 22; }
+    if (y > H - 24) break;
+    ctx.fillText(word + ' ', x, y);
+    x += m.width;
+  }
+  posterize(ctx);
+  S.canvasMode = false;
+}
+
+async function renderContent() {
+  const pageHtml = spine[S.si].pages[S.pi];
+  const fullHtml = wrapWithChrome(pageHtml);
+  try {
+    await renderToCanvas(fullHtml);
+  } catch(e) {
+    console.warn('Canvas render failed, using text fallback:', e);
+    renderFallbackText(pageHtml);
+  }
+  updateBadge();
+}
+
+function drawSolid(level) {
+  ctx.fillStyle = `rgb(${level},${level},${level})`;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function updateBadge() {
+  const b = $('renderBadge');
+  if (S.canvasMode) {
+    b.textContent = 'canvas'; b.className = 'render-badge canvas';
+  } else {
+    b.textContent = 'fallback'; b.className = 'render-badge css';
+  }
+  $('renderMode').textContent = S.canvasMode ? 'Canvas + posterize' : 'Text fallback';
+}
+
+// ─── GHOSTING ────────────────────────────────────────────────
+
+function saveGhost() {
+  try {
+    S.ghostData = ctx.getImageData(0, 0, W, H);
+    S.ghostIntensity = Math.min(S.ghostIntensity + 0.05, 0.15);
+  } catch(e) { S.ghostData = null; }
+}
+
+function applyGhost() {
+  if (!S.ghostData || S.ghostIntensity <= 0) return;
+  try {
+    const cur = ctx.getImageData(0, 0, W, H);
+    const gd = S.ghostData.data, cd = cur.data;
+    for (let i = 0; i < cd.length; i += 4) {
+      const blended = cd[i] * (1 - S.ghostIntensity) + gd[i] * S.ghostIntensity;
+      let best = LEVELS[0], dist = 999;
+      for (const lv of LEVELS) {
+        const dd = Math.abs(blended - lv);
+        if (dd < dist) { dist = dd; best = lv; }
+      }
+      cd[i] = cd[i+1] = cd[i+2] = best;
+    }
+    ctx.putImageData(cur, 0, 0);
+  } catch(e) {}
+}
+
+function clearGhost() {
+  S.ghostData = null;
+  S.ghostIntensity = 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// E-INK REFRESH ANIMATIONS
+// ═══════════════════════════════════════════════════════════════
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+async function fullRefresh() {
+  if (S.refreshing) return;
+  S.refreshing = true;
+  clearGhost();
+
+  // Phase 1: invert flash
+  drawSolid(LEVELS[1]); await delay(200);
+  // Phase 2: go black
+  drawSolid(LEVELS[0]); await delay(800);
+  // Phase 3: go white
+  drawSolid(LEVELS[3]); await delay(600);
+  // Phase 4: render content
+  await renderContent();
+  await delay(200);
+
+  S.refreshing = false;
+}
+
+async function partialRefresh() {
+  if (S.refreshing) return;
+  S.refreshing = true;
+  saveGhost();
+
+  // Phase 1: slight dim
+  try {
+    const d = ctx.getImageData(0, 0, W, H);
+    for (let i = 0; i < d.data.length; i += 4) {
+      d.data[i] = d.data[i+1] = d.data[i+2] = Math.min(d.data[i] + 30, 255);
+    }
+    ctx.putImageData(d, 0, 0);
+  } catch(e) {}
+  await delay(80);
+
+  // Phase 2: render new
+  await renderContent();
+  applyGhost();
+  await delay(150);
+
+  S.refreshing = false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════
+
+const actions = {
+  nextPage() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    const sp = spine[S.si];
+    if (S.pi < sp.pages.length - 1) {
+      S.history.push({s:S.si,p:S.pi}); S.pi++;
+      partialRefresh().then(updateUI);
+    } else if (S.si < spine.length - 1) {
+      S.history.push({s:S.si,p:S.pi}); S.si++; S.pi = 0;
+      partialRefresh().then(updateUI);
+    } else { showToast('End of briefing'); }
+  },
+  prevPage() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    if (S.pi > 0) {
+      S.history.push({s:S.si,p:S.pi}); S.pi--;
+      partialRefresh().then(updateUI);
+    } else if (S.si > 0) {
+      S.history.push({s:S.si,p:S.pi}); S.si--;
+      S.pi = spine[S.si].pages.length - 1;
+      partialRefresh().then(updateUI);
+    } else { showToast('Beginning of briefing'); }
+  },
+  nextCh() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    if (S.si < spine.length - 1) {
+      S.history.push({s:S.si,p:S.pi}); S.si++; S.pi = 0;
+      fullRefresh().then(() => { showProgress(); updateUI(); });
+    } else { showToast('Last category'); }
+  },
+  prevCh() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    if (S.si > 0) {
+      S.history.push({s:S.si,p:S.pi}); S.si--; S.pi = 0;
+      fullRefresh().then(() => { showProgress(); updateUI(); });
+    } else { showToast('First category'); }
+  },
+  cover() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    S.history.push({s:S.si,p:S.pi}); S.si = 0; S.pi = 0;
+    fullRefresh().then(() => { showProgress(); updateUI(); });
+  },
+  back() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    if (S.history.length) {
+      const h = S.history.pop(); S.si = h.s; S.pi = h.p;
+      partialRefresh().then(updateUI);
+    } else { showToast('No history'); }
+  },
+  bookmark() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) { closeMenu(); return; }
+    const k = `${S.si}:${S.pi}`;
+    if (S.bookmarks.has(k)) {
+      S.bookmarks.delete(k); showToast('Bookmark removed');
+    } else {
+      S.bookmarks.add(k); showToast('Bookmarked!');
+    }
+    updateBmIcon(); updateUI();
+    // Partial refresh for visual feedback
+    saveGhost();
+    setTimeout(() => applyGhost(), 100);
+  },
+  menu() {
+    if (S.refreshing || !S.power) return;
+    if (S.menuOpen) closeMenu(); else openMenu();
+  },
+};
+
+function dispatch(actionName) {
+  const fn = actions[actionName];
+  if (fn) fn();
+}
+
+// ─── UI Helpers ──────────────────────────────────────────────
+
+let toastT = null;
+function showToast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('visible'), 1600);
+}
+
+function showProgress() {
+  // Progress is now permanently shown in the status bar on canvas
+  // No separate overlay needed — matches CrossPoint behavior
+}
+
+function updateBmIcon() {
+  // Bookmark is now rendered on the canvas via wrapWithChrome
+  // Re-render to show/hide the ribbon
+}
+
+let menuSel = 0;
+const MENU_ITEMS = ['Select Chapter','Orientation','Auto Page Turn','Go To %','Screenshot','Go Home'];
+
+function openMenu() {
+  S.menuOpen = true;
+  menuSel = 0;
+  const s = spine[S.si];
+  const totalPages = spine.reduce((a,b) => a + b.pages.length, 0);
+  let cur = 0; for(let i=0;i<S.si;i++) cur += spine[i].pages.length; cur += S.pi+1;
+  const pct = Math.round(cur/totalPages*100);
+  const title = s.title.replace(/&#\d+;/g,'').trim() || 'Daily Briefing';
+
+  $('menuTitle').textContent = title;
+  $('menuProg').textContent = `Ch: ${S.si+1}/${spine.length} pp | Book: ${pct}%`;
+  renderMenuItems();
+  $('menuOv').classList.add('open');
+}
+
+function renderMenuItems() {
+  $('menuItems').innerHTML = MENU_ITEMS.map((item, i) =>
+    `<div class="menu-item${i===menuSel?' selected':''}">${item}</div>`
+  ).join('');
+}
+function closeMenu() {
+  S.menuOpen = false;
+  $('menuOv').classList.remove('open');
+}
+
+function updateUI() {
+  const s = spine[S.si];
+  $('stSpine').textContent = S.si;
+  $('stSpineLbl').textContent = s.title.replace(/&#\d+;/g,'').trim() || 'Cover';
+  $('stPage').textContent = S.pi + 1;
+  $('stPageLbl').textContent = `of ${s.pages.length}`;
+  $('stTotal').textContent = spine.length;
+  $('stBm').textContent = S.bookmarks.size;
+  updateBmIcon();
+
+  const bl = $('bmList');
+  if (!S.bookmarks.size) {
+    bl.innerHTML = '<div class="empty">No bookmarks yet</div>';
+  } else {
+    bl.innerHTML = [...S.bookmarks].map(b => {
+      const [si,pi] = b.split(':').map(Number);
+      return `<div class="bi">${spine[si].title} &#8212; Page ${pi+1}</div>`;
+    }).join('');
+  }
+}
+
+function togglePower() {
+  if (S.refreshing) return;
+  S.power = !S.power;
+  if (S.power) {
+    fullRefresh().then(updateUI);
+  } else {
+    S.refreshing = true;
+    drawSolid(LEVELS[0]);
+    setTimeout(() => {
+      drawSolid(Math.round((LEVELS[1]+LEVELS[2])/2));
+      S.refreshing = false;
+    }, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BUTTON WIRING
+// ═══════════════════════════════════════════════════════════════
+
+function setupBtn(el, getShort, getLong) {
+  let timer = null, fired = false;
+  const fill = el.querySelector('.hfill');
+
+  function start(e) {
+    e.preventDefault();
+    if (S.refreshing) return;
+    fired = false;
+    el.classList.add('pressed');
+    if (fill) { fill.style.transition = `width ${cfg.longPressMs}ms linear`; requestAnimationFrame(() => fill.style.width = '100%'); }
+    timer = setTimeout(() => {
+      fired = true;
+      el.classList.add('long-pressed','triggered');
+      setTimeout(() => el.classList.remove('triggered'), 200);
+      dispatch(getLong());
+    }, cfg.longPressMs);
+  }
+  function end(e) {
+    e.preventDefault();
+    clearTimeout(timer);
+    el.classList.remove('pressed','long-pressed');
+    if (fill) { fill.style.transition = 'width .12s ease-out'; fill.style.width = '0'; }
+    if (!fired && !S.refreshing) dispatch(getShort());
+    fired = false;
+  }
+  function cancel() {
+    clearTimeout(timer);
+    el.classList.remove('pressed','long-pressed');
+    if (fill) { fill.style.transition = 'width .12s ease-out'; fill.style.width = '0'; }
+    fired = false;
+  }
+
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', end);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('touchstart', start, {passive:false});
+  el.addEventListener('touchend', end, {passive:false});
+  el.addEventListener('touchcancel', cancel);
+}
+
+// ─── Config panel wiring ─────────────────────────────────────
+
+function wireConfig() {
+  $('cfgLp').addEventListener('input', e => {
+    cfg.longPressMs = +e.target.value;
+    $('cfgLpVal').textContent = (cfg.longPressMs/1000).toFixed(1) + 's';
+  });
+
+  const map = {
+    cfgNextS:'nextS', cfgNextL:'nextL',
+    cfgPrevS:'prevS', cfgPrevL:'prevL',
+    cfgOkS:'okS',     cfgOkL:'okL',
+    cfgBkS:'bkS',     cfgBkL:'bkL',
+  };
+  for (const [id, key] of Object.entries(map)) {
+    $(id).addEventListener('change', e => { cfg[key] = e.target.value; });
+  }
+}
+
+// ─── Keyboard ────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  switch(e.key) {
+    case 'ArrowDown': case 'ArrowRight':
+      e.preventDefault(); dispatch(e.shiftKey ? cfg.nextL : cfg.nextS); break;
+    case 'ArrowUp': case 'ArrowLeft':
+      e.preventDefault(); dispatch(e.shiftKey ? cfg.prevL : cfg.prevS); break;
+    case 'Enter':
+      e.preventDefault(); dispatch(e.shiftKey ? cfg.okL : cfg.okS); break;
+    case 'Backspace':
+      e.preventDefault(); dispatch(e.shiftKey ? cfg.bkL : cfg.bkS); break;
+    case 'p': case 'P':
+      e.preventDefault(); togglePower(); break;
+    case 'Escape':
+      if (S.menuOpen) closeMenu(); break;
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+async function init() {
+  // Wire buttons using config getters (so config changes apply immediately)
+  setupBtn($('btnNext'), () => cfg.nextS, () => cfg.nextL);
+  setupBtn($('btnPrev'), () => cfg.prevS, () => cfg.prevL);
+  setupBtn($('btnOk'),   () => cfg.okS,   () => cfg.okL);
+  setupBtn($('btnBack'), () => cfg.bkS,   () => cfg.bkL);
+  $('btnPwr').addEventListener('click', e => { e.preventDefault(); togglePower(); });
+
+  wireConfig();
+
+  // Scale slider
+  const scaleSlider = $('scaleSlider');
+  const scaleLabel = $('scaleLabel');
+  const scaleWrap = $('deviceScaleWrap');
+  scaleSlider.addEventListener('input', () => {
+    const v = parseFloat(scaleSlider.value);
+    scaleWrap.style.setProperty('--device-scale', v);
+    scaleLabel.textContent = v.toFixed(2) + 'x';
+  });
+
+  // Initial render
+  drawSolid(BG);
+  await renderContent();
+  updateUI();
+}
+
+init();
+</script>
+</body>
+</html>

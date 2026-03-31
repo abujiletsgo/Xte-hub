@@ -62,11 +62,23 @@ CREATE TABLE IF NOT EXISTS sync_state (
     item_ids_json   TEXT
 );
 
+CREATE TABLE IF NOT EXISTS channels (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    handle          TEXT NOT NULL UNIQUE,
+    name            TEXT,
+    platform        TEXT NOT NULL DEFAULT 'youtube',
+    category        TEXT DEFAULT 'general',
+    added_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    last_fetched    TEXT,
+    enabled         INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
 CREATE INDEX IF NOT EXISTS idx_items_cluster ON items(cluster_id);
 CREATE INDEX IF NOT EXISTS idx_items_submitted ON items(submitted_at);
 CREATE INDEX IF NOT EXISTS idx_clusters_category ON story_clusters(category);
+CREATE INDEX IF NOT EXISTS idx_channels_enabled ON channels(enabled);
 """
 
 
@@ -269,3 +281,39 @@ async def get_briefing_by_date(db: aiosqlite.Connection, briefing_date: str) -> 
     )
     row = await cursor.fetchone()
     return dict(row) if row else None
+
+
+# --- Channel queries ---
+
+async def add_channel(db: aiosqlite.Connection, handle: str, name: str | None = None,
+                      category: str = "general") -> int:
+    cursor = await db.execute(
+        """INSERT INTO channels (handle, name, category)
+           VALUES (?, ?, ?)
+           ON CONFLICT(handle) DO UPDATE SET name=COALESCE(excluded.name, channels.name),
+             category=excluded.category, enabled=1
+           RETURNING id""",
+        (handle, name, category),
+    )
+    row = await cursor.fetchone()
+    await db.commit()
+    return row[0]
+
+
+async def get_channels(db: aiosqlite.Connection, enabled_only: bool = True) -> list[dict]:
+    where = "WHERE enabled = 1" if enabled_only else ""
+    cursor = await db.execute(f"SELECT * FROM channels {where} ORDER BY category, name")
+    return [dict(r) for r in await cursor.fetchall()]
+
+
+async def remove_channel(db: aiosqlite.Connection, channel_id: int):
+    await db.execute("UPDATE channels SET enabled = 0 WHERE id = ?", (channel_id,))
+    await db.commit()
+
+
+async def update_channel_fetched(db: aiosqlite.Connection, channel_id: int):
+    await db.execute(
+        "UPDATE channels SET last_fetched = datetime('now') WHERE id = ?",
+        (channel_id,),
+    )
+    await db.commit()

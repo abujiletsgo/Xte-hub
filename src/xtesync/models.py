@@ -36,6 +36,7 @@ class ClusterSummary(BaseModel):
     id: int
     headline: str
     synthesis: str | None
+    detail: str | None = None
     key_facts: list[dict] | None = None
     source_agreement: str | None = None
     item_count: int
@@ -96,12 +97,14 @@ class SynthesisResult(BaseModel):
 
 
 CATEGORY_ICONS = {
+    "korean_news": "🇰🇷",
+    "world_news": "🌍",
+    "ai": "🤖",
     "tech": "⚡",
     "economics": "📊",
     "politics": "🏛",
     "crypto": "₿",
     "science": "🔬",
-    "videos": "🎬",
     "podcasts": "🎧",
     "travel": "✈",
     "lifestyle": "🌿",
@@ -109,12 +112,14 @@ CATEGORY_ICONS = {
 }
 
 CATEGORY_ORDER = [
+    "korean_news",
+    "world_news",
+    "ai",
     "tech",
     "economics",
     "politics",
     "crypto",
     "science",
-    "videos",
     "podcasts",
     "travel",
     "lifestyle",

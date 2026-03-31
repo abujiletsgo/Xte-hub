@@ -1,11 +1,14 @@
 """API router for content items - submit URLs, list items."""
 
+import logging
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from xtesync import database as db
 from xtesync.models import ItemResponse, ItemSubmit
 from xtesync.services import classifier, content, synthesis
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/items", tags=["items"])
 
 
@@ -15,15 +18,23 @@ async def _process_item(item_id: int, url: str):
         try:
             await db.update_item_status(conn, item_id, "processing")
 
-            # Step 1: Extract content
+            # Step 1: Extract content (no AI needed)
             result = await content.extract(url)
 
-            # Step 2: Classify
-            content_type, category, confidence = await classifier.classify(
-                url, title=result.title, snippet=result.text[:500]
-            )
+            # Step 2: Classify — domain heuristics first, AI as best-effort
+            domain_type, domain_cat = classifier.classify_by_domain(url)
+            content_type = domain_type or "article"
+            category = domain_cat or "general"
+            confidence = 0.7 if domain_cat else 0.3
 
-            # Step 3: Update item with extracted content
+            try:
+                content_type, category, confidence = await classifier.classify(
+                    url, title=result.title, snippet=result.text[:500]
+                )
+            except Exception as e:
+                logger.warning("AI classify failed (using domain fallback): %s", e)
+
+            # Step 3: Save extracted content immediately
             await db.update_item_extracted(conn, item_id,
                 title=result.title,
                 source_domain=result.source_domain,
@@ -35,7 +46,6 @@ async def _process_item(item_id: int, url: str):
                 auto_category_confidence=confidence,
             )
 
-            # Set category if not manually specified
             item = await db.get_item(conn, item_id)
             if not item.get("category"):
                 await db.update_item_extracted(conn, item_id, category=category)
@@ -48,18 +58,24 @@ async def _process_item(item_id: int, url: str):
                 )
                 return
 
-            # Step 5: AI summarization
-            synth = await synthesis.summarize_item(
-                result.title or "Untitled",
-                result.text,
-                category,
-                result.word_count,
-            )
-
-            await db.update_item_extracted(conn, item_id,
-                summary=synth.brief,
-                detail=synth.full_text,
-            )
+            # Step 5: AI summarization — best-effort
+            try:
+                synth = await synthesis.summarize_item(
+                    result.title or "Untitled",
+                    result.text,
+                    category,
+                    result.word_count,
+                )
+                await db.update_item_extracted(conn, item_id,
+                    summary=synth.brief,
+                    detail=synth.full_text,
+                )
+            except Exception as e:
+                logger.warning("AI summarize failed (using text excerpt): %s", e)
+                await db.update_item_extracted(conn, item_id,
+                    summary=result.text[:300],
+                    detail=result.text,
+                )
 
             # Step 6: Generate standalone full EPUB
             from xtesync.services.epub_builder import build_item_epub

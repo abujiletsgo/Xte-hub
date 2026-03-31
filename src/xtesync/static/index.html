@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XteSync Hub</title>
+<style>
+:root {
+  --bg: #09090b;
+  --surface: #111113;
+  --surface2: #1a1a1f;
+  --surface3: #222228;
+  --border: #27272a;
+  --border2: #3f3f46;
+  --text: #fafafa;
+  --text2: #a1a1aa;
+  --text3: #71717a;
+  --accent: #c8ff00;
+  --accent2: #a3d900;
+  --red: #ef4444;
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --yellow: #eab308;
+  --radius: 10px;
+  --sidebar-w: 280px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  background: var(--bg); color: var(--text);
+  height: 100vh; overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+button { font-family: inherit; }
+
+/* ── Layout: sidebar + main ── */
+.layout { display: flex; height: 100vh; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.sidebar-brand {
+  padding: 24px 24px 20px; border-bottom: 1px solid var(--border);
+  font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+}
+.sidebar-brand span { color: var(--accent); }
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 8px; }
+.nav-section {
+  font-size: 11px; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.8px; padding: 12px 12px 6px; font-weight: 600;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px; border-radius: 8px; cursor: pointer;
+  font-size: 15px; color: var(--text2); transition: all 0.15s;
+  border: none; background: none; width: 100%; text-align: left;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-badge {
+  margin-left: auto; font-size: 11px; background: var(--surface3);
+  padding: 1px 7px; border-radius: 10px; color: var(--text3);
+}
+
+/* Device panel at bottom of sidebar */
+.sidebar-device {
+  padding: 12px; border-top: 1px solid var(--border);
+}
+.device-connect {
+  display: flex; gap: 6px;
+}
+.device-connect input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 10px; color: var(--text);
+  font-size: 12px; outline: none;
+}
+.device-connect input:focus { border-color: var(--accent); }
+.device-connected {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; background: #0a1a0a; border: 1px solid #1a3d1a;
+  border-radius: 6px; font-size: 12px;
+}
+.device-connected .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); display: inline-block; margin-right: 6px;
+}
+
+/* ── Main content ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Toolbar */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 32px; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.toolbar-title { font-size: 20px; font-weight: 600; }
+.toolbar-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Content area */
+.content { flex: 1; overflow-y: auto; padding: 32px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent); color: #000; border: none;
+  border-radius: 8px; padding: 10px 20px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s; white-space: nowrap;
+}
+.btn:hover { background: var(--accent2); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 500; }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-send { background: #166534; color: var(--green); border: 1px solid #22803a; }
+.btn-send:hover { background: #1a8a40; }
+.btn-ghost { background: transparent; border: none; color: var(--text2); padding: 5px 8px; }
+.btn-ghost:hover { color: var(--text); }
+.btn-danger { background: transparent; border: 1px solid var(--border); color: var(--red); }
+.btn-danger:hover { background: #1a0505; border-color: var(--red); }
+
+/* ── Cards / Tables ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
+}
+.channel-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+.channel-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.channel-info { display: flex; align-items: center; gap: 10px; }
+.channel-handle { font-weight: 600; font-size: 15px; }
+.channel-meta { font-size: 13px; color: var(--text3); }
+.cat-badge {
+  font-size: 12px; padding: 3px 10px; border-radius: 5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.cat-korean_news { background: #1a0a1a; color: #f9a8d4; }
+.cat-world_news { background: #0a1a2e; color: #93c5fd; }
+.cat-ai { background: #1a0a2e; color: #a78bfa; }
+.cat-tech { background: #0a1a2e; color: #60a5fa; }
+.cat-economics { background: #1a1a0a; color: #facc15; }
+.cat-crypto { background: #1a0a1a; color: #f472b6; }
+.cat-science { background: #0a1a1a; color: #2dd4bf; }
+.cat-podcasts { background: #1a0f0a; color: #fb923c; }
+.cat-general { background: var(--surface3); color: var(--text2); }
+.cat-politics { background: #1a0a0a; color: #fca5a5; }
+
+/* Badge */
+.badge {
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.badge-pending { background: #1a1500; color: var(--yellow); }
+.badge-processing { background: #001a2e; color: var(--blue); }
+.badge-ready { background: #001a0a; color: var(--green); }
+.badge-error { background: #1a0505; color: var(--red); }
+
+/* Briefing reader */
+.briefing-header {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px 32px; margin-bottom: 24px;
+}
+.briefing-header h2 { font-size: 24px; margin-bottom: 6px; }
+.briefing-header .meta { font-size: 15px; color: var(--text2); margin-bottom: 20px; }
+.briefing-categories { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+/* Category section in briefing */
+.briefing-section {
+  margin-bottom: 28px;
+}
+.briefing-section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 0; margin-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+.briefing-section-header h3 { font-size: 18px; font-weight: 700; }
+
+/* Cluster card in briefing */
+.cluster-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 14px; overflow: hidden;
+}
+.cluster-summary {
+  padding: 24px 28px;
+}
+.cluster-headline {
+  font-size: 18px; font-weight: 700; margin-bottom: 10px; line-height: 1.4;
+}
+.cluster-brief {
+  font-size: 15px; line-height: 1.7; color: var(--text2); margin-bottom: 14px;
+}
+.cluster-facts {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
+}
+.cluster-fact {
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  padding: 4px 0;
+}
+.cluster-sources {
+  font-size: 13px; color: var(--text3); margin-bottom: 12px;
+}
+.cluster-toggle {
+  background: var(--surface2); border: none; border-top: 1px solid var(--border);
+  padding: 12px 28px; width: 100%; text-align: left;
+  font-size: 14px; font-weight: 500; color: var(--accent);
+  cursor: pointer; transition: background 0.15s;
+}
+.cluster-toggle:hover { background: var(--surface3); }
+.cluster-detail {
+  display: none; padding: 0 28px 28px;
+  border-top: 1px solid var(--border);
+}
+.cluster-detail.open { display: block; }
+.cluster-detail-content {
+  max-width: 720px; font-size: 16px; line-height: 1.8; color: var(--text);
+  padding-top: 20px;
+}
+.cluster-detail-content h2 {
+  font-size: 18px; font-weight: 700; margin: 24px 0 10px; color: var(--text);
+}
+.cluster-detail-content p {
+  margin-bottom: 14px;
+}
+.cluster-detail-content blockquote {
+  border-left: 3px solid var(--accent); padding-left: 16px;
+  margin: 16px 0; color: var(--text2); font-style: italic;
+}
+
+/* Add-channel row */
+.add-row {
+  display: flex; gap: 8px; margin-bottom: 16px;
+}
+.add-row input, .add-row textarea {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 16px; color: var(--text);
+  font-size: 15px; outline: none; font-family: inherit;
+}
+.add-row input:focus, .add-row textarea:focus { border-color: var(--accent); }
+.add-row input::placeholder, .add-row textarea::placeholder { color: var(--text3); }
+
+/* Batch area */
+.batch-area {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 20px;
+}
+.batch-area textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px; color: var(--text); font-size: 13px;
+  resize: vertical; outline: none; font-family: 'SF Mono', 'Fira Code', monospace;
+  min-height: 80px;
+}
+.batch-area textarea:focus { border-color: var(--accent); }
+.batch-area textarea::placeholder { color: var(--text3); }
+.batch-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.batch-header h3 { font-size: 14px; font-weight: 600; }
+
+/* Build status */
+.build-status {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; text-align: center;
+  margin-bottom: 16px;
+}
+.build-status p { font-size: 14px; color: var(--text2); margin-bottom: 12px; }
+
+/* Sync cards */
+.sync-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sync-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.sync-info .meta { font-size: 14px; color: var(--text3); }
+.sync-actions { display: flex; gap: 6px; }
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+.empty-icon { font-size: 36px; margin-bottom: 12px; }
+.empty p { font-size: 14px; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 12px 20px; border-radius: var(--radius);
+  font-size: 13px; z-index: 100; opacity: 0;
+  transition: opacity 0.3s; pointer-events: none;
+  max-width: 400px;
+}
+.toast.show { opacity: 1; }
+.toast.error { border-color: var(--red); }
+.toast.success { border-color: var(--green); }
+
+/* Spinner */
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Section labels */
+.section-label {
+  font-size: 12px; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.5px; font-weight: 600; margin-bottom: 10px;
+}
+
+/* ── Briefing split layout ── */
+.briefing-split {
+  display: flex; flex: 1; overflow: hidden;
+  height: 0; /* forces flex child to respect overflow */
+  min-height: 0;
+}
+.briefing-main {
+  flex: 1; overflow-y: auto; padding: 32px;
+  min-height: 0;
+}
+.briefing-split.has-preview .briefing-main {
+  flex: 1; min-width: 0;
+}
+/* Ensure page containers fill available space */
+.page {
+  display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
+}
+.page.active, .page[style*="display: block"], .page:not([style*="display: none"]):not([style]) {
+  display: flex !important;
+}
+
+/* ── E-ink preview panel ── */
+.eink-panel {
+  width: 380px; flex-shrink: 0;
+  background: var(--surface); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+.eink-toolbar {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 0 0 12px; border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.eink-label { font-size: 13px; font-weight: 600; color: var(--text2); }
+.eink-page-info { font-size: 12px; color: var(--text3); margin-left: auto; }
+.eink-nav { display: flex; gap: 4px; }
+.eink-btn {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.eink-btn:hover { background: var(--surface3); color: var(--text); }
+
+/* Device frame */
+.eink-device { display: flex; flex-direction: column; align-items: center; }
+.eink-bezel {
+  width: 288px; /* 480 * 0.6 */
+  height: 480px; /* 800 * 0.6 */
+  background: #f5f0e8;
+  border: 3px solid #888;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(0,0,0,0.1);
+  position: relative;
+}
+.eink-screen {
+  width: 100%; height: 100%;
+  padding: 14px 17px; /* 24*0.6, 28*0.6 */
+  overflow: hidden;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 10.8px; /* 18*0.6 */
+  line-height: 1.55;
+  color: #1a1a1a;
+  background: #f5f0e8;
+  /* E-ink look: slight grain */
+  background-image: url("data:image/svg+xml,%3Csvg width='4' height='4' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='4' height='4' fill='%23f5f0e8'/%3E%3Crect width='1' height='1' x='0' y='0' fill='%23ede8df' opacity='0.5'/%3E%3C/svg%3E");
+}
+.eink-screen h1 {
+  font-size: 14.4px; /* 24*0.6 */
+  margin-bottom: 4px; line-height: 1.2;
+  color: #000;
+}
+.eink-screen h2 {
+  font-size: 12px; /* 20*0.6 */
+  margin: 10px 0 6px; line-height: 1.25;
+  color: #000;
+}
+.eink-screen h3 {
+  font-size: 11px;
+  margin: 8px 0 4px; line-height: 1.3;
+  color: #111;
+}
+.eink-screen p {
+  font-size: 10.8px; line-height: 1.55;
+  margin-bottom: 6px; color: #1a1a1a;
+  text-align: left;
+  hyphens: none;
+}
+.eink-screen .cover-page {
+  text-align: center; padding-top: 54px; /* 90*0.6 */
+}
+.eink-screen .cover-page h1 { font-size: 14.4px; margin-bottom: 4px; }
+.eink-screen .cover-page .date { font-size: 10px; color: #444; }
+.eink-screen .cover-page .stats { font-size: 9px; color: #666; margin: 4px 0; }
+.eink-screen .story-summary { margin-bottom: 10px; }
+.eink-screen .story-summary h3 { font-size: 11px; margin-bottom: 3px; }
+.eink-screen .fact { font-size: 9.6px; color: #333; margin: 2px 0; }
+.eink-screen .sources { font-size: 8.4px; color: #777; font-style: italic; }
+.eink-screen .detail-section h2 { font-size: 12px; margin-bottom: 7px; }
+.eink-screen .detail-section p { font-size: 10.8px; line-height: 1.55; margin-bottom: 6px; }
+.eink-screen .source-attribution {
+  font-size: 8.4px; color: #555; font-style: italic;
+  border-top: 1px solid #aaa; padding-top: 5px; margin-top: 10px;
+}
+.eink-screen .nav-hint {
+  font-size: 8.4px; text-align: center; color: #aaa;
+  margin-top: 8px; font-style: italic;
+}
+.eink-screen .summary-page h1 {
+  font-size: 13px; margin-bottom: 8px; text-align: center;
+}
+
+/* Hardware buttons */
+.eink-buttons {
+  display: flex; gap: 12px; margin-top: 10px;
+}
+.eink-hw-btn {
+  width: 36px; height: 24px; border-radius: 4px;
+  background: #555; color: #ccc; font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none;
+  border: 1px solid #444;
+}
+.eink-hw-btn:hover { background: #666; }
+.eink-hw-btn.eink-hw-ok { width: 44px; background: #444; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">Xte<span>Sync</span> Hub</div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Content</div>
+      <button class="nav-item active" data-tab="sources" onclick="switchTab('sources')">
+        <span class="nav-icon">📺</span> Sources
+        <span class="nav-badge" id="channelCount">0</span>
+      </button>
+
+      <div class="nav-section">Output</div>
+      <button class="nav-item" data-tab="briefings" onclick="switchTab('briefings')">
+        <span class="nav-icon">📰</span> Briefings
+      </button>
+      <button class="nav-item" data-tab="sync" onclick="switchTab('sync')">
+        <span class="nav-icon">📖</span> Sync to Xte
+        <span class="nav-badge" id="syncCount">0</span>
+      </button>
+    </nav>
+
+    <!-- Device connection -->
+    <div class="sidebar-device">
+      <div class="section-label">Device</div>
+      <div id="deviceDisconnected">
+        <div class="device-connect">
+          <input type="text" id="deviceIp" placeholder="192.168.0.149">
+          <button class="btn btn-sm" onclick="connectDevice()">Connect</button>
+        </div>
+      </div>
+      <div id="deviceConnected" style="display:none;">
+        <div class="device-connected">
+          <span><span class="dot"></span><span id="deviceLabel">CrossPoint</span></span>
+          <button class="btn-ghost btn-sm" onclick="disconnectDevice()">Disconnect</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Sources -->
+    <div class="page" id="page-sources" style="display:flex;">
+      <div class="toolbar">
+        <div class="toolbar-title">YouTube Sources</div>
+        <div class="toolbar-actions">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('batchSection').style.display=document.getElementById('batchSection').style.display==='none'?'block':'none'">Batch Import</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="add-row">
+          <input type="text" id="channelInput" placeholder="Paste YouTube URL or @handle..." style="flex:1;" autocomplete="off">
+          <button class="btn" onclick="addChannel()">Add Channel</button>
+        </div>
+
+        <div id="batchSection" style="display:none;">
+          <div class="batch-area">
+            <div class="batch-header">
+              <h3>Batch Import</h3>
+              <button class="btn btn-sm" onclick="addBatch()">Add All</button>
+            </div>
+            <textarea id="batchInput" rows="5" placeholder="Paste YouTube channel links here — one per line. Auto-categorized into AI, Tech, Podcasts, etc."></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:4px; margin-bottom:20px; border-bottom:1px solid var(--border);">
+          <div class="add-row" style="margin-bottom:12px;">
+            <input type="url" id="urlInput" placeholder="Or paste a single video/article URL..." style="flex:1;" autocomplete="off">
+            <button class="btn btn-outline" id="submitBtn" onclick="submitUrl()">Add URL</button>
+          </div>
+        </div>
+
+        <div id="channelList"></div>
+      </div>
+    </div>
+
+    <!-- Briefings -->
+    <div class="page" id="page-briefings" style="display:none;">
+      <div class="toolbar">
+        <div class="toolbar-title">Daily Briefing</div>
+        <div class="toolbar-actions">
+          <button class="btn btn-outline btn-sm" id="previewToggle" onclick="togglePreview()" style="display:none;">Show Xte Preview</button>
+          <button class="btn" id="generateBtn" onclick="buildBriefing()">Build Today's Briefing</button>
+        </div>
+      </div>
+      <div class="briefing-split" id="briefingSplit">
+        <div class="content briefing-main" id="briefingMain">
+          <div class="build-status" id="buildStatus" style="display:none;">
+            <p id="buildText">Building...</p>
+            <span class="spinner"></span>
+          </div>
+          <div id="briefingList"></div>
+        </div>
+        <!-- E-ink preview panel -->
+        <div class="eink-panel" id="einkPanel" style="display:none;">
+          <div class="eink-toolbar">
+            <span class="eink-label">Xteink X4 Preview</span>
+            <span class="eink-page-info" id="einkPageInfo">Page 1</span>
+            <div class="eink-nav">
+              <button class="eink-btn" onclick="einkPrev()" title="Previous page">&#9650;</button>
+              <button class="eink-btn" onclick="einkNext()" title="Next page">&#9660;</button>
+            </div>
+          </div>
+          <div class="eink-device">
+            <div class="eink-bezel">
+              <div class="eink-screen" id="einkScreen"></div>
+            </div>
+            <div class="eink-buttons">
+              <div class="eink-hw-btn" title="Back">&#9664;</div>
+              <div class="eink-hw-btn eink-hw-ok" title="OK">OK</div>
+              <div class="eink-hw-btn" title="Forward">&#9654;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sync -->
+    <div class="page" id="page-sync" style="display:none;">
+      <div class="toolbar">
+        <div class="toolbar-title">Sync to Xte</div>
+      </div>
+      <div class="content">
+        <div id="syncList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let currentTab = 'sources';
+let deviceConnected = false;
+
+// ── Navigation ──
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  document.querySelectorAll('.page').forEach(p => p.style.display = p.id === `page-${tab}` ? 'flex' : 'none');
+  if (tab === 'sources') loadChannels();
+  if (tab === 'briefings') loadBriefings();
+  if (tab === 'sync') loadSync();
+}
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ── Device ──
+async function connectDevice() {
+  const ip = document.getElementById('deviceIp').value.trim() || '192.168.0.149';
+  try {
+    const res = await fetch(`${API}/api/device/connect`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ip }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(()=>({}))).detail || 'Failed');
+    const data = await res.json();
+    deviceConnected = true;
+    localStorage.setItem('xte_device_ip', ip);
+    document.getElementById('deviceDisconnected').style.display = 'none';
+    document.getElementById('deviceConnected').style.display = '';
+    document.getElementById('deviceLabel').textContent = 'CrossPoint v' + data.version;
+    toast('Connected to CrossPoint', 'success');
+    switchTab(currentTab);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function disconnectDevice() {
+  await fetch(`${API}/api/device/disconnect`, {method:'POST'}).catch(()=>{});
+  deviceConnected = false;
+  document.getElementById('deviceDisconnected').style.display = '';
+  document.getElementById('deviceConnected').style.display = 'none';
+  switchTab(currentTab);
+}
+
+// ── Channels ──
+async function addChannel() {
+  const input = document.getElementById('channelInput');
+  const raw = input.value.trim();
+  if (!raw) return;
+  try {
+    const res = await fetch(`${API}/api/channels`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ handle: raw, category: 'auto' }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    input.value = '';
+    toast(`@${data.handle} added to ${data.category}`, 'success');
+    loadChannels();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addBatch() {
+  const ta = document.getElementById('batchInput');
+  const urls = ta.value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (!urls.length) return;
+  try {
+    const res = await fetch(`${API}/api/channels/batch`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ urls }),
+    });
+    const data = await res.json();
+    ta.value = '';
+    toast(`${data.added} channels added`, 'success');
+    loadChannels();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function removeChannel(id) {
+  await fetch(`${API}/api/channels/${id}`, {method:'DELETE'});
+  loadChannels();
+}
+
+async function loadChannels() {
+  try {
+    const res = await fetch(`${API}/api/channels`);
+    const channels = await res.json();
+    document.getElementById('channelCount').textContent = channels.length;
+    if (!channels.length) {
+      document.getElementById('channelList').innerHTML =
+        '<div class="empty"><div class="empty-icon">📺</div><p>No channels yet. Add YouTube handles or URLs above.</p></div>';
+      return;
+    }
+    const grouped = {};
+    channels.forEach(ch => {
+      const cat = ch.category || 'general';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(ch);
+    });
+    let html = '';
+    const catOrder = ['korean_news','world_news','ai','tech','economics','crypto','science','podcasts','general'];
+    for (const cat of catOrder) {
+      const chs = grouped[cat];
+      if (!chs) continue;
+      html += `<div class="section-label" style="margin-top:16px;">${cat.toUpperCase()} (${chs.length})</div>`;
+      html += '<div class="channel-grid">';
+      for (const ch of chs) {
+        html += `<div class="channel-card">
+          <div class="channel-info">
+            <span class="cat-badge cat-${ch.category}">${ch.category}</span>
+            <div>
+              <div class="channel-handle">@${esc(ch.handle)}</div>
+              ${ch.name ? `<div class="channel-meta">${esc(ch.name)}</div>` : ''}
+            </div>
+          </div>
+          <button class="btn-ghost btn-sm" onclick="removeChannel(${ch.id})" title="Remove">✕</button>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    document.getElementById('channelList').innerHTML = html;
+  } catch (e) {}
+}
+
+// ── URL submit ──
+async function submitUrl() {
+  const input = document.getElementById('urlInput');
+  const url = input.value.trim();
+  if (!url) return;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await fetch(`${API}/api/items/url`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    input.value = '';
+    toast('Added! Processing in background...');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Add URL'; }
+}
+
+// ── Build briefing ──
+async function buildBriefing() {
+  const btn = document.getElementById('generateBtn');
+  const status = document.getElementById('buildStatus');
+  const text = document.getElementById('buildText');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Building...';
+  status.style.display = '';
+  text.textContent = 'Fetching latest videos from all channels...';
+  try {
+    await fetch(`${API}/api/channels/fetch-and-brief`, {method:'POST'});
+    text.textContent = 'Extracting transcripts and synthesizing... (1-3 min)';
+    await pollBriefing();
+    status.style.display = 'none';
+    alertUser('Briefing Ready', "Today's briefing has been built and is ready to read or sync.");
+    loadBriefings();
+    loadSync();
+  } catch (e) {
+    text.textContent = 'Failed: ' + e.message;
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = "Build Today's Briefing";
+  }
+}
+
+async function pollBriefing(n = 0) {
+  if (n > 60) throw new Error('Timed out');
+  await new Promise(r => setTimeout(r, 5000));
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const res = await fetch(`${API}/api/briefings/${today}`);
+    if (res.ok) return;
+  } catch {}
+  const text = document.getElementById('buildText');
+  if (text) text.textContent = `Processing sources... (${(n*5)}s)`;
+  return pollBriefing(n + 1);
+}
+
+// ── Briefings ──
+function mdToHtml(text) {
+  if (!text) return '';
+  // Convert markdown headers and paragraphs to HTML
+  return text
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hp>bh])(.+)$/gm, '$1')
+    .replace(/^/, '<p>').replace(/$/, '</p>')
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<h2>)/g, '$1')
+    .replace(/(<\/h2>)<\/p>/g, '$1')
+    .replace(/<p>(<blockquote>)/g, '$1')
+    .replace(/(<\/blockquote>)<\/p>/g, '$1');
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById('detail-' + id);
+  const btn = document.getElementById('toggle-' + id);
+  if (el.classList.contains('open')) {
+    el.classList.remove('open');
+    btn.textContent = 'Read full analysis →';
+  } else {
+    el.classList.add('open');
+    btn.textContent = 'Collapse ↑';
+  }
+}
+
+async function loadBriefings() {
+  try {
+    const res = await fetch(`${API}/api/briefings/latest`);
+    if (res.status === 404) {
+      document.getElementById('briefingList').innerHTML =
+        '<div class="empty"><div class="empty-icon">📰</div><p>No briefings yet. Add channels and hit Build.</p></div>';
+      return;
+    }
+    const data = await res.json();
+    einkBriefingData = data;
+    document.getElementById('previewToggle').style.display = '';
+    if (document.getElementById('einkPanel').style.display !== 'none') buildEinkPages(data);
+    const dateStr = new Date(data.date+'T00:00:00').toLocaleDateString('en-US', {
+      weekday:'long', year:'numeric', month:'long', day:'numeric'
+    });
+
+    let html = `<div class="briefing-header">
+      <h2>${dateStr}</h2>
+      <div class="meta">${data.total_stories} topics across ${data.categories.length} categories</div>
+      <div class="briefing-categories">
+        ${data.categories.map(c=>`<span class="cat-badge cat-${c.name}">${c.icon} ${c.name}</span>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="${API}/api/briefings/${data.date}/download" class="btn btn-outline">Download EPUB</a>
+        ${deviceConnected?'<button class="btn btn-send" onclick="sendLatestToXte()">Send to Xte</button>':''}
+      </div>
+    </div>`;
+
+    // Render each category section with full content
+    for (const cat of data.categories) {
+      html += `<div class="briefing-section">
+        <div class="briefing-section-header">
+          <span style="font-size:22px;">${cat.icon}</span>
+          <h3>${cat.name.replace('_', ' ').toUpperCase()}</h3>
+          <span style="color:var(--text3);font-size:14px;margin-left:auto;">${cat.clusters.length} topic${cat.clusters.length>1?'s':''}</span>
+        </div>`;
+
+      for (const cl of cat.clusters) {
+        const cid = cl.id;
+        html += `<div class="cluster-card">
+          <div class="cluster-summary">
+            <div class="cluster-headline">${esc(cl.headline)}</div>
+            <div class="cluster-brief">${esc(cl.synthesis || '')}</div>`;
+
+        // Key facts
+        if (cl.key_facts && cl.key_facts.length) {
+          html += '<div class="cluster-facts">';
+          for (const f of cl.key_facts) {
+            html += `<div class="cluster-fact">${f.marker || '•'} ${esc(f.text || '')}</div>`;
+          }
+          html += '</div>';
+        }
+
+        // Sources
+        if (cl.items && cl.items.length) {
+          const sources = [...new Set(cl.items.map(i=>i.source_domain).filter(Boolean))];
+          if (sources.length) {
+            html += `<div class="cluster-sources">Sources: ${sources.map(s=>esc(s)).join(', ')}</div>`;
+          }
+        }
+
+        html += '</div>'; // end cluster-summary
+
+        // Expandable detail (Layer 2)
+        if (cl.detail) {
+          html += `<button class="cluster-toggle" id="toggle-${cid}" onclick="toggleDetail(${cid})">Read full analysis →</button>`;
+          html += `<div class="cluster-detail" id="detail-${cid}">
+            <div class="cluster-detail-content">${mdToHtml(cl.detail)}</div>
+          </div>`;
+        }
+
+        html += '</div>'; // end cluster-card
+      }
+
+      html += '</div>'; // end briefing-section
+    }
+
+    document.getElementById('briefingList').innerHTML = html;
+  } catch (e) {
+    document.getElementById('briefingList').innerHTML = '<div class="empty"><p>Could not load briefings</p></div>';
+  }
+}
+
+async function sendLatestToXte() {
+  try {
+    const res = await fetch(`${API}/api/briefings/sync/pending`);
+    const syncs = await res.json();
+    if (syncs.length > 0) await sendToXte(syncs[0].id);
+    else toast('Nothing to sync');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Sync ──
+async function loadSync() {
+  try {
+    const res = await fetch(`${API}/api/briefings/sync/pending`);
+    const syncs = await res.json();
+    document.getElementById('syncCount').textContent = syncs.length;
+    if (!syncs.length) {
+      document.getElementById('syncList').innerHTML =
+        '<div class="empty"><div class="empty-icon">✅</div><p>All synced!</p></div>';
+      return;
+    }
+    document.getElementById('syncList').innerHTML = syncs.map(s => `
+      <div class="sync-card">
+        <div class="sync-info">
+          <h3>Briefing: ${esc(s.briefing_date)}</h3>
+          <div class="meta">${s.generated_at||'recently'}</div>
+        </div>
+        <div class="sync-actions">
+          ${deviceConnected
+            ?`<button class="btn btn-send btn-sm" data-sync="${s.id}" onclick="sendToXte(${s.id})">Send to Xte</button>`
+            :`<a href="${API}/api/briefings/${s.briefing_date}/download" class="btn btn-outline btn-sm">Download</a>`}
+          <button class="btn btn-outline btn-sm" onclick="markSynced(${s.id})">Done</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {}
+}
+
+async function sendToXte(syncId) {
+  const btn = document.querySelector(`[data-sync="${syncId}"]`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
+  try {
+    const res = await fetch(`${API}/api/device/sync/${syncId}`, {method:'POST'});
+    if (!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Failed');
+    const data = await res.json();
+    alertUser('Synced to Xte', data.file + ' is now on your device. Pick up your Xte and read!');
+    loadSync();
+  } catch (e) { toast(e.message, 'error'); if(btn){btn.disabled=false;btn.textContent='Send to Xte';} }
+}
+
+async function markSynced(id) {
+  await fetch(`${API}/api/briefings/sync/${id}/mark-synced`,{method:'POST'});
+  loadSync();
+}
+
+function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// ── Alerts / Notifications ──
+// Request browser notification permission on first interaction
+document.addEventListener('click', function reqPerm() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  document.removeEventListener('click', reqPerm);
+}, { once: true });
+
+function alertUser(title, body) {
+  // 1. In-app banner
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:200;background:#166534;color:#22c55e;border:1px solid #22803a;border-radius:0 0 10px 10px;padding:16px 32px;font-size:15px;font-weight:600;text-align:center;animation:slideDown 0.3s ease;';
+  banner.innerHTML = `<div style="font-size:13px;color:#86efac;margin-bottom:4px;">${esc(title)}</div><div>${esc(body)}</div>`;
+  document.body.appendChild(banner);
+  setTimeout(() => { banner.style.opacity = '0'; banner.style.transition = 'opacity 0.5s'; }, 5000);
+  setTimeout(() => banner.remove(), 5500);
+
+  // 2. Browser notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '📖' });
+  }
+
+  // 3. Sound (short chime via Web Audio)
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+    // Second tone
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.frequency.value = 1320;
+    osc2.type = 'sine';
+    gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.6);
+  } catch (e) {}
+
+  // 4. Flash the page title
+  let flashes = 0;
+  const origTitle = document.title;
+  const flashInterval = setInterval(() => {
+    document.title = flashes % 2 === 0 ? '✅ ' + title : origTitle;
+    flashes++;
+    if (flashes > 10) { clearInterval(flashInterval); document.title = origTitle; }
+  }, 500);
+}
+
+// ── E-ink Preview ──
+let einkPages = [];
+let einkCurrentPage = 0;
+let einkBriefingData = null;
+
+function togglePreview() {
+  const panel = document.getElementById('einkPanel');
+  const split = document.getElementById('briefingSplit');
+  const btn = document.getElementById('previewToggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = '';
+    split.classList.add('has-preview');
+    btn.textContent = 'Hide Preview';
+    if (einkBriefingData) buildEinkPages(einkBriefingData);
+  } else {
+    panel.style.display = 'none';
+    split.classList.remove('has-preview');
+    btn.textContent = 'Show Xte Preview';
+  }
+}
+
+function buildEinkPages(data) {
+  einkPages = [];
+  const dateStr = new Date(data.date+'T00:00:00').toLocaleDateString('en-US', {
+    weekday:'long', year:'numeric', month:'long', day:'numeric'
+  });
+  const totalStories = data.categories.reduce((s,c) => s + c.clusters.length, 0);
+  const catList = data.categories.map(c => c.icon + ' ' + c.name.replace('_',' ')).join(', ');
+
+  // Cover page
+  einkPages.push(`<div class="cover-page">
+    <h1>Your Daily Briefing</h1>
+    <p class="date">${dateStr}</p>
+    <p class="stats">${totalStories} stories</p>
+    <p class="stats" style="font-size:8px;margin-top:6px;">${esc(catList)}</p>
+    <div style="margin-top:20px;font-size:8.4px;color:#888;line-height:1.6;">
+      <p><b>CrossPoint Navigation:</b></p>
+      <p>&#9660; Short press = next page</p>
+      <p>&#9660; Long press = next category</p>
+      <p>&#9650; Short press = prev page</p>
+      <p>&#9650; Long press = prev category</p>
+    </div>
+  </div>`);
+
+  // Category pages
+  for (const cat of data.categories) {
+    // Summary page
+    let summaryHtml = `<div class="summary-page"><h1>${cat.icon} ${cat.name.replace('_',' ').toUpperCase()}</h1>`;
+    for (const cl of cat.clusters) {
+      summaryHtml += `<div class="story-summary">
+        <h3>&#9632; ${esc(cl.headline)}</h3>
+        <p style="font-size:9.6px;color:#333;">${esc((cl.synthesis||'').substring(0, 200))}${(cl.synthesis||'').length > 200 ? '...' : ''}</p>`;
+      if (cl.key_facts) {
+        for (const f of cl.key_facts.slice(0, 3)) {
+          summaryHtml += `<p class="fact">${f.marker||'•'} ${esc((f.text||'').substring(0,80))}</p>`;
+        }
+      }
+      summaryHtml += '</div>';
+    }
+    summaryHtml += '<p class="nav-hint">[short-press for details →]</p></div>';
+    einkPages.push(summaryHtml);
+
+    // Detail pages for each cluster
+    for (const cl of cat.clusters) {
+      let detailHtml = `<div class="detail-section">
+        <h2>${esc(cl.headline)}</h2>`;
+
+      // Use the detail (Layer 2) text, split into chunks that fit the screen
+      const text = cl.detail || cl.synthesis || '';
+      // Simple: split by paragraphs and fit ~600 chars per page
+      const paragraphs = text.split(/\n\n|\n(?=##)/);
+      let pageContent = '';
+      let charCount = 0;
+      const charLimit = 550;
+
+      for (const para of paragraphs) {
+        const cleaned = para.trim();
+        if (!cleaned) continue;
+
+        if (charCount + cleaned.length > charLimit && charCount > 0) {
+          // Finish this page
+          detailHtml += pageContent + '</div>';
+          einkPages.push(detailHtml);
+          // Start new page
+          detailHtml = `<div class="detail-section"><h2 style="font-size:10px;color:#666;">${esc(cl.headline)} (cont.)</h2>`;
+          pageContent = '';
+          charCount = 0;
+        }
+
+        // Format paragraph
+        if (cleaned.startsWith('## ') || cleaned.startsWith('# ')) {
+          const hText = cleaned.replace(/^#+\s*/, '');
+          pageContent += `<h3>${esc(hText)}</h3>`;
+        } else {
+          pageContent += `<p>${esc(cleaned)}</p>`;
+        }
+        charCount += cleaned.length;
+      }
+
+      if (charCount > 0) {
+        // Sources
+        if (cl.items && cl.items.length) {
+          const srcs = [...new Set(cl.items.map(i=>i.source_domain).filter(Boolean))];
+          if (srcs.length) {
+            pageContent += `<div class="source-attribution"><p>Sources: ${srcs.join(', ')}</p></div>`;
+          }
+        }
+        detailHtml += pageContent + '</div>';
+        einkPages.push(detailHtml);
+      }
+    }
+  }
+
+  einkCurrentPage = 0;
+  renderEinkPage();
+}
+
+function renderEinkPage() {
+  const screen = document.getElementById('einkScreen');
+  const info = document.getElementById('einkPageInfo');
+  if (einkPages.length === 0) {
+    screen.innerHTML = '<div style="text-align:center;padding-top:40%;color:#999;font-size:10px;">No briefing loaded</div>';
+    info.textContent = '';
+    return;
+  }
+  screen.innerHTML = einkPages[einkCurrentPage];
+  info.textContent = `Page ${einkCurrentPage + 1} / ${einkPages.length}`;
+}
+
+function einkNext() {
+  if (einkCurrentPage < einkPages.length - 1) {
+    einkCurrentPage++;
+    renderEinkPage();
+  }
+}
+
+function einkPrev() {
+  if (einkCurrentPage > 0) {
+    einkCurrentPage--;
+    renderEinkPage();
+  }
+}
+
+// Keyboard nav for preview
+document.addEventListener('keydown', e => {
+  if (document.getElementById('einkPanel').style.display === 'none') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); einkNext(); }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); einkPrev(); }
+});
+
+// Enter keys
+document.getElementById('channelInput').addEventListener('keydown',e=>{if(e.key==='Enter')addChannel();});
+document.getElementById('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitUrl();});
+document.getElementById('deviceIp').addEventListener('keydown',e=>{if(e.key==='Enter')connectDevice();});
+
+// ── Init ──
+const savedIp = localStorage.getItem('xte_device_ip');
+if (savedIp) document.getElementById('deviceIp').value = savedIp;
+fetch(`${API}/api/device/status`).then(r=>r.json()).then(d=>{
+  if(d.connected){deviceConnected=true;
+    document.getElementById('deviceDisconnected').style.display='none';
+    document.getElementById('deviceConnected').style.display='';
+    document.getElementById('deviceLabel').textContent='CrossPoint v'+d.version;
+  }
+}).catch(()=>{});
+loadChannels();
+loadSync();
+</script>
+</body>
+</html>

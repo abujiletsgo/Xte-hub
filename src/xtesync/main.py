@@ -1,12 +1,17 @@
 """XteSync FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from xtesync.database import init_db
-from xtesync.routers import briefings, items
+from xtesync.routers import briefings, channels, device, items
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -25,10 +30,17 @@ app = FastAPI(
 
 app.include_router(items.router, prefix="/api")
 app.include_router(briefings.router, prefix="/api")
+app.include_router(channels.router, prefix="/api")
+app.include_router(device.router, prefix="/api")
 
 
 @app.get("/")
 async def root():
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/api")
+async def api_info():
     return {
         "name": "XteSync",
         "version": "0.1.0",

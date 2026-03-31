@@ -4,7 +4,7 @@ import json
 import os
 from urllib.parse import urlparse
 
-import anthropic
+from google import genai
 
 # Domain → content_type mappings
 CONTENT_TYPE_DOMAINS = {
@@ -85,8 +85,8 @@ def classify_by_domain(url: str) -> tuple[str | None, str | None]:
 
 
 async def classify_with_ai(title: str, snippet: str, url: str) -> tuple[str, str, float]:
-    """Use Claude to classify content. Returns (content_type, category, confidence)."""
-    client = anthropic.AsyncAnthropic()
+    """Use Gemini to classify content. Returns (content_type, category, confidence)."""
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     prompt = f"""Classify this content into exactly one content_type and one category.
 
@@ -100,14 +100,13 @@ category must be one of: {', '.join(VALID_CATEGORIES)}
 Respond with JSON only:
 {{"content_type": "...", "category": "...", "confidence": 0.0-1.0}}"""
 
-    message = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=100,
-        messages=[{"role": "user", "content": prompt}],
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
     )
 
     try:
-        text = message.content[0].text.strip()
+        text = response.text.strip()
         # Extract JSON if wrapped in markdown code block
         if "```" in text:
             text = text.split("```")[1]
